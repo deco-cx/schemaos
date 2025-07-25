@@ -3,6 +3,7 @@ name = "caracracha"
 main = "main.ts"
 compatibility_date = "2025-06-17"
 compatibility_flags = [ "nodejs_compat" ]
+scope = "testing-workers"
 
 [assets]
 directory = "./view-build"

@@ -11,48 +11,61 @@ import { DATASET_METADATA } from '../mockData/datasets';
 
 export const ExplorerDrawer: React.FC = () => {
   const { isOpen, query, close, addFilter, removeFilter, updateFilter, clearFilters } = useExplorer();
-  const [showWorkflowModal, setShowWorkflowModal] = useState(false);
-
-  if (!isOpen || !query) return null;
+  const [showWorkflowPanel, setShowWorkflowPanel] = useState(false);
 
   // Get entity data and metadata
-  const entityParts = query.entityId.split('.');
-  const entityName = entityParts[entityParts.length - 1];
-  const entityMetadata = DATASET_METADATA[query.entityId as keyof typeof DATASET_METADATA];
+  const entityParts = query?.entityId.split('.') || [];
+  const entityName = entityParts[entityParts.length - 1] || '';
+  const entityMetadata = query ? DATASET_METADATA[query.entityId as keyof typeof DATASET_METADATA] : null;
   const entityData = entityMetadata?.data || [];
 
   // Apply filters to data
   const filteredData = useMemo(() => {
-    if (!query.filters || query.filters.length === 0) {
+    if (!query?.filters || query.filters.length === 0) {
       return entityData;
     }
     return entityData.filter((row: any) => evaluateFilters(row, query.filters));
-  }, [entityData, query.filters]);
+  }, [entityData, query?.filters]);
 
   const hasData = entityData.length > 0;
 
+  if (!isOpen || !query) return null;
+
   return (
-    <>
-      <Sheet open={isOpen} onOpenChange={(open) => !open && close()}>
-        <SheetContent className="w-[800px] max-w-[90vw] p-0 flex flex-col">
+          <>
+        <Sheet open={isOpen} onOpenChange={(open) => !open && close()}>
+          <SheetContent 
+            side="right"
+            className="!w-[85vw] !max-w-[1800px] p-0 flex flex-col overflow-hidden !sm:max-w-none"
+            style={{ maxWidth: '1800px', width: '85vw' }}
+          >
           {/* Header */}
-          <SheetHeader className="px-6 py-4 border-b flex-row items-center justify-between">
+          <SheetHeader className="px-6 py-5 border-b bg-gray-50/50 flex-row items-center justify-between">
             <div className="flex items-center gap-3">
-              <Database className="h-5 w-5 text-gray-500" />
-              <SheetTitle className="flex items-center gap-2">
-                <Badge variant="secondary">{entityName}</Badge>
-                <span className="text-sm text-gray-500">
-                  {filteredData.length} of {entityData.length} records
-                </span>
-              </SheetTitle>
+              <div className="p-2 bg-white rounded-lg border shadow-sm">
+                <Database className="h-5 w-5 text-gray-600" />
+              </div>
+              <div>
+                <SheetTitle className="text-xl font-semibold text-gray-900 mb-1">
+                  {entityName}
+                </SheetTitle>
+                <div className="flex items-center gap-3">
+                  <Badge variant="secondary" className="text-xs">
+                    Data Explorer
+                  </Badge>
+                  <span className="text-sm text-gray-500">
+                    {filteredData.length.toLocaleString()} of {entityData.length.toLocaleString()} records
+                  </span>
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {hasData && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowWorkflowModal(true)}
-                  className="text-gray-600"
+                  onClick={() => setShowWorkflowPanel(!showWorkflowPanel)}
+                  className={showWorkflowPanel ? "text-purple-600 bg-purple-50" : "text-gray-600"}
                 >
                   <Settings className="h-4 w-4 mr-1" />
                   Automations
@@ -81,76 +94,92 @@ export const ExplorerDrawer: React.FC = () => {
             onClearFilters={clearFilters}
           />
 
-          {/* Data Table */}
-          <div className="flex-1 overflow-hidden">
-            {filteredData.length > 0 ? (
-              <PaginatedTable
-                data={filteredData}
-                className="h-full"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                <Database className="h-12 w-12 mb-4 text-gray-300" />
-                <p className="text-lg font-medium">No matching records</p>
-                <p className="text-sm mt-2">Try adjusting your filters</p>
-                {query.filters.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearFilters}
-                    className="mt-4"
-                  >
-                    Clear all filters
-                  </Button>
-                )}
+          {/* Data Table and Workflow Panel */}
+          <div className="flex-1 flex overflow-hidden">
+            {/* Main Data View */}
+            <div className={`flex-1 overflow-hidden p-6 transition-all duration-300 ${showWorkflowPanel ? 'pr-3' : ''}`}>
+              {filteredData.length > 0 ? (
+                <div className="h-full bg-white rounded-lg border shadow-sm">
+                  <PaginatedTable
+                    data={filteredData}
+                    className="h-full"
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                  <Database className="h-12 w-12 mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">No matching records</p>
+                  <p className="text-sm mt-2">Try adjusting your filters</p>
+                  {query.filters.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="mt-4"
+                    >
+                      Clear all filters
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Workflow Side Panel */}
+            {showWorkflowPanel && (
+              <div className="w-[400px] border-l bg-gray-50 p-6 overflow-y-auto">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold flex items-center gap-2 mb-2">
+                      <Zap className="h-5 w-5 text-purple-600" />
+                      Workflow Automation
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Create automated workflows that trigger when data changes in {entityName}.
+                    </p>
+                  </div>
+
+                  <div className="bg-white rounded-lg border p-6">
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Zap className="h-8 w-8 text-purple-600" />
+                      </div>
+                      <h4 className="font-medium mb-2">No workflows yet</h4>
+                      <p className="text-sm text-gray-600 mb-6">
+                        Set up your first automation to streamline your data operations.
+                      </p>
+                      <Button
+                        onClick={() => window.open('https://ordenado.deco.page', '_blank')}
+                        className="w-full bg-purple-600 hover:bg-purple-700"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Create Workflow
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-gray-700">Popular Automations</h4>
+                    <div className="space-y-2">
+                      <div className="bg-white rounded-lg border p-3 hover:border-purple-300 cursor-pointer transition-colors">
+                        <h5 className="font-medium text-sm">New Row Alert</h5>
+                        <p className="text-xs text-gray-600 mt-1">Send notifications when new data is added</p>
+                      </div>
+                      <div className="bg-white rounded-lg border p-3 hover:border-purple-300 cursor-pointer transition-colors">
+                        <h5 className="font-medium text-sm">Status Change Trigger</h5>
+                        <p className="text-xs text-gray-600 mt-1">React to status field updates automatically</p>
+                      </div>
+                      <div className="bg-white rounded-lg border p-3 hover:border-purple-300 cursor-pointer transition-colors">
+                        <h5 className="font-medium text-sm">Data Sync</h5>
+                        <p className="text-xs text-gray-600 mt-1">Keep multiple systems in sync</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </SheetContent>
       </Sheet>
-
-      {/* Workflow Start Modal */}
-      {showWorkflowModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-purple-600" />
-                  Start Workflow
-                </h3>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowWorkflowModal(false)}
-                  className="h-8 w-8"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="text-center py-8">
-                <Zap className="h-16 w-16 text-purple-600 mx-auto mb-4" />
-                <h4 className="text-lg font-medium mb-2">Ready to automate {entityName}?</h4>
-                <p className="text-gray-600 mb-6">
-                  Create powerful workflows to automate actions when data changes in this collection.
-                </p>
-                <Button
-                  size="lg"
-                  onClick={() => window.open('https://ordenado.deco.page', '_blank')}
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  <ExternalLink className="h-5 w-5 mr-2" />
-                  Start Workflow
-                </Button>
-                <p className="text-xs text-gray-500 mt-4">
-                  You'll be redirected to Ordenado to create and manage your workflow
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };

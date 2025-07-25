@@ -82,7 +82,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   };
 
   return (
-    <div className="border-b border-gray-200 bg-gray-50 p-4">
+    <div className="border-b border-gray-100 bg-white px-6 py-4">
       <div className="flex flex-wrap items-center gap-2">
         {/* Entity filter (locked) */}
         <Badge variant="secondary" className="filter-chip">
