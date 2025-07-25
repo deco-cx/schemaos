@@ -3,7 +3,7 @@ import { RotateCcw, Save, Download, Upload } from 'lucide-react';
 import Canvas from './canvas/Canvas';
 import Palette from './sidebar/Palette';
 import PropertyPanel from './sidebar/PropertyPanel';
-import { DataDrawer } from './preview/DataDrawer';
+import { ExplorerDrawer } from './explorer/ExplorerDrawer';
 import { useSchemaStore } from './store';
 import { Button } from './components/ui/button';
 
@@ -119,7 +119,7 @@ function App() {
         </main>
 
         {/* Right Sidebar - Properties */}
-        <aside className="w-80 bg-white border-l border-gray-200 overflow-hidden">
+        <aside className="w-96 bg-white border-l border-gray-200 overflow-hidden">
           <PropertyPanel />
         </aside>
       </div>
@@ -149,8 +149,8 @@ function App() {
         </div>
       )}
       
-      {/* Data Preview Drawer */}
-      <DataDrawer />
+      {/* Preview Drawer */}
+      <ExplorerDrawer />
     </div>
   );
 }

@@ -1,14 +1,17 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Handle, Position } from 'reactflow';
 import type { NodeProps } from 'reactflow';
-import { ChevronDown, ChevronUp, Database, Zap, Download } from 'lucide-react';
+import { ChevronDown, ChevronUp, Database, Zap, Download, Check, X } from 'lucide-react';
 import { useSchemaStore } from '../../store';
-import { usePreview } from '../../hooks/usePreview';
+import { useExplorer } from '../../hooks/useExplorer';
 import type { ObjectNodeData } from '../../store';
 
 export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeData>) {
-  const { toggleShowAllFields, toggleFieldExpansion } = useSchemaStore();
-  const { openPreview } = usePreview();
+  const { toggleShowAllFields, toggleFieldExpansion, updateNode } = useSchemaStore();
+  const { open: openExplorer } = useExplorer();
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
   
   const fieldsToShow = data.showAllFields ? data.fields : data.fields.slice(0, 5);
   const hasMoreFields = data.fields.length > 5;
@@ -17,9 +20,44 @@ export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeD
   const handleDoubleClick = () => {
     // Check if node has PaginatedList capability and a bindingId
     if (data.binding?.capabilities?.includes('PaginatedList') && data.binding?.id) {
-      openPreview(id, data.binding.id);
+      openExplorer(data.binding.id);
     }
   };
+
+  const handleNameDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent the node's double-click handler
+    setIsEditingName(true);
+    setTempName(data.name);
+  };
+
+  const handleNameSave = () => {
+    if (tempName.trim()) {
+      updateNode(id, { name: tempName.trim() });
+    }
+    setIsEditingName(false);
+    setTempName('');
+  };
+
+  const handleNameCancel = () => {
+    setIsEditingName(false);
+    setTempName('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleNameSave();
+    } else if (e.key === 'Escape') {
+      handleNameCancel();
+    }
+  };
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditingName && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditingName]);
 
   const getCapabilityIcon = (capability: string) => {
     switch (capability) {
@@ -54,9 +92,9 @@ export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeD
     <div 
       className={`bg-white rounded-lg border-2 transition-all duration-200 min-w-[280px] ${
         selected ? 'border-blue-500 shadow-lg' : 'border-gray-200 shadow-sm hover:shadow-md'
-      } ${hasPaginatedList ? 'cursor-pointer' : ''}`}
-      onDoubleClick={handleDoubleClick}
-      title={hasPaginatedList ? 'Double-click to preview data' : undefined}
+      } ${hasPaginatedList && !isEditingName ? 'cursor-pointer' : ''}`}
+      onDoubleClick={isEditingName ? undefined : handleDoubleClick}
+      title={hasPaginatedList && !isEditingName ? 'Double-click to preview data (or double-click title to edit name)' : undefined}
     >
       <Handle type="target" position={Position.Left} className="w-3 h-3 bg-gray-400" />
       <Handle type="source" position={Position.Right} className="w-3 h-3 bg-gray-400" />
@@ -64,8 +102,44 @@ export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeD
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-100">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900 text-sm">{data.name}</h3>
-          {data.binding && (
+          {isEditingName ? (
+            <div className="flex items-center gap-2 flex-1 mr-2" style={{ pointerEvents: 'auto' }}>
+              <input
+                ref={inputRef}
+                value={tempName}
+                onChange={(e) => setTempName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={handleNameSave}
+                className="font-semibold text-gray-900 text-sm bg-white border border-blue-300 rounded px-2 py-1 flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <button
+                onClick={handleNameSave}
+                onMouseDown={(e) => e.preventDefault()} // Prevent blur on button click
+                className="p-1 hover:bg-green-100 rounded transition-colors"
+                title="Save"
+              >
+                <Check className="h-3 w-3 text-green-600" />
+              </button>
+              <button
+                onClick={handleNameCancel}
+                onMouseDown={(e) => e.preventDefault()} // Prevent blur on button click
+                className="p-1 hover:bg-red-100 rounded transition-colors"
+                title="Cancel"
+              >
+                <X className="h-3 w-3 text-red-600" />
+              </button>
+            </div>
+          ) : (
+            <h3 
+              className="font-semibold text-gray-900 text-sm cursor-pointer hover:text-blue-600 transition-colors select-none"
+              onDoubleClick={handleNameDoubleClick}
+              title="Double-click to edit name"
+            >
+              {data.name}
+            </h3>
+          )}
+          {data.binding && !isEditingName && (
             <div className="flex items-center gap-1">
               {data.binding.capabilities?.map((capability, index) => (
                 <div key={index} className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-md">

@@ -32,6 +32,8 @@ export default function PropertyPanel() {
   const [aiReasoning, setAiReasoning] = useState<string>('');
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [tempFieldName, setTempFieldName] = useState('');
+  const [isEditingTableName, setIsEditingTableName] = useState(false);
+  const [tempTableName, setTempTableName] = useState('');
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
 
@@ -90,6 +92,24 @@ export default function PropertyPanel() {
     setTempFieldName('');
   };
 
+  const handleTableNameEdit = () => {
+    setIsEditingTableName(true);
+    setTempTableName(selectedNode.data.name);
+  };
+
+  const handleTableNameSave = () => {
+    if (tempTableName.trim()) {
+      updateNode(selectedNode.id, { name: tempTableName.trim() });
+    }
+    setIsEditingTableName(false);
+    setTempTableName('');
+  };
+
+  const handleTableNameCancel = () => {
+    setIsEditingTableName(false);
+    setTempTableName('');
+  };
+
   const handleAISuggestion = async () => {
     setIsLoadingAI(true);
     setAiReasoning('');
@@ -113,7 +133,47 @@ export default function PropertyPanel() {
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">{selectedNode.data.name}</h2>
+        {isEditingTableName ? (
+          <div className="flex items-center gap-2">
+            <Input
+              value={tempTableName}
+              onChange={(e) => setTempTableName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleTableNameSave();
+                if (e.key === 'Escape') handleTableNameCancel();
+              }}
+              className="text-lg font-semibold"
+              autoFocus
+            />
+            <Button
+              size="sm"
+              onClick={handleTableNameSave}
+              className="h-8 w-8 p-0"
+            >
+              <Check className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleTableNameCancel}
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 group">
+            <h2 className="text-lg font-semibold text-gray-900">{selectedNode.data.name}</h2>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleTableNameEdit}
+              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Edit2 className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
         {selectedNode.data.binding && (
           <div className="mt-1 flex items-center gap-2">
             <Badge variant="secondary" className="text-xs">

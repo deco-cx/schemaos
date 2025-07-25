@@ -176,6 +176,34 @@ export const MOCK_SUPPORT_TICKETS = Array.from({ length: 428 }).map((_, i) => ({
   channel: ['email', 'chat', 'phone', 'social_media'][i % 4],
 }));
 
+// Stripe Payments - Payment processing
+export const MOCK_STRIPE_PAYMENTS = Array.from({ length: 892 }).map((_, i) => ({
+  id: `pi_${Math.random().toString(36).substr(2, 9)}`,
+  amount: Math.floor(Math.random() * 10000) + 1000, // cents
+  currency: ['usd', 'eur', 'gbp', 'cad'][i % 4],
+  status: ['succeeded', 'processing', 'requires_payment_method', 'requires_confirmation', 'canceled'][i % 5],
+  description: ['Subscription payment', 'One-time purchase', 'Invoice payment', 'Marketplace payout'][i % 4],
+  created: randomDate(new Date('2023-01-01'), new Date()).toISOString(),
+  customer: `cus_${Math.random().toString(36).substr(2, 9)}`,
+  metadata: {
+    orderId: `#ORD-${String(10000 + i).padStart(5, '0')}`,
+    invoiceId: i % 3 === 0 ? `INV-${String(1000 + i).padStart(4, '0')}` : null,
+  },
+}));
+
+// Mailchimp Campaigns - Email marketing
+export const MOCK_MAILCHIMP_CAMPAIGNS = Array.from({ length: 156 }).map((_, i) => ({
+  id: `camp_${Math.random().toString(36).substr(2, 9)}`,
+  name: ['Summer Sale', 'Product Launch', 'Newsletter', 'Holiday Special', 'Welcome Series'][i % 5] + ` - ${new Date(2023, i % 12, 1).toLocaleDateString('en-US', { month: 'short' })}`,
+  status: ['sent', 'scheduled', 'draft', 'paused'][i % 4],
+  sentCount: Math.floor(Math.random() * 50000) + 1000,
+  openRate: (Math.random() * 0.4 + 0.1), // 10-50%
+  clickRate: (Math.random() * 0.1 + 0.02), // 2-12%
+  listId: `list_${i % 3}`,
+  sendTime: randomDate(new Date('2023-01-01'), new Date()).toISOString(),
+  subject: ['Don\'t miss out!', 'New arrivals just for you', 'Your weekly update', 'Special offer inside', 'We miss you!'][i % 5],
+}));
+
 // Dataset metadata for dynamic loading
 export const DATASET_METADATA = {
   'shopify.orders': {
@@ -207,5 +235,75 @@ export const DATASET_METADATA = {
     title: 'Support Tickets',
     description: 'Customer service tickets with priority, status, and resolution tracking',
     icon: '🎫',
+  },
+  'stripe.payments': {
+    data: MOCK_STRIPE_PAYMENTS,
+    title: 'Stripe Payments',
+    description: 'Payment processing with status tracking and metadata',
+    icon: '💳',
+  },
+  'mailchimp.campaigns': {
+    data: MOCK_MAILCHIMP_CAMPAIGNS,
+    title: 'Email Campaigns',
+    description: 'Email marketing campaigns with performance metrics',
+    icon: '📧',
+  },
+};
+
+// Export a simplified datasets object for easier access
+export const datasets = {
+  shopify: {
+    orders: MOCK_SHOPIFY_ORDERS.map((order) => ({
+      orderNumber: order.id,
+      customerName: order.customer.name,
+      email: order.customer.email,
+      total: order.totalPrice,
+      status: order.status,
+      date: order.createdAt,
+      items: order.items.length,
+    })),
+  },
+  crm: {
+    customers: MOCK_CRM_CUSTOMERS.map((customer) => ({
+      id: customer.id,
+      name: `${customer.firstName} ${customer.lastName}`,
+      email: customer.email,
+      segment: customer.segment,
+      score: customer.lead_score,
+      totalSpent: parseFloat(customer.lifetime_value.replace(/[$,]/g, '')),
+      lastContact: customer.last_interaction,
+    })),
+  },
+  analytics: {
+    events: MOCK_ANALYTICS_EVENTS.map((event) => ({
+      id: event.event_id,
+      eventType: event.event_type,
+      userId: event.user_id,
+      timestamp: event.timestamp,
+      value: event.properties.button_text || event.conversion_value || 0,
+      duration: event.properties.time_on_page,
+      url: event.page_url,
+    })),
+  },
+  stripe: {
+    payments: MOCK_STRIPE_PAYMENTS.map((payment) => ({
+      id: payment.id,
+      amount: payment.amount / 100, // Convert cents to dollars
+      currency: payment.currency.toUpperCase(),
+      status: payment.status,
+      description: payment.description,
+      created: payment.created,
+    })),
+  },
+  mailchimp: {
+    campaigns: MOCK_MAILCHIMP_CAMPAIGNS.map((campaign) => ({
+      id: campaign.id,
+      name: campaign.name,
+      status: campaign.status,
+      sentCount: campaign.sentCount,
+      openRate: (campaign.openRate * 100).toFixed(1),
+      clickRate: (campaign.clickRate * 100).toFixed(1),
+      sendTime: campaign.sendTime,
+    })),
   },
 }; 

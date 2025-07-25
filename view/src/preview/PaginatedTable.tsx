@@ -25,9 +25,11 @@ import {
   Search,
   Settings2,
 } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 interface PaginatedTableProps {
   data: any[];
+  className?: string;
 }
 
 // Helper to convert camelCase to Title Case
@@ -76,7 +78,7 @@ const isSortable = (value: any): boolean => {
   );
 };
 
-export function PaginatedTable({ data }: PaginatedTableProps) {
+export function PaginatedTable({ data, className }: PaginatedTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
@@ -190,7 +192,7 @@ export function PaginatedTable({ data }: PaginatedTableProps) {
   const fontSize = density === 'compact' ? 'text-xs' : 'text-sm';
 
   return (
-    <div className="space-y-4">
+    <div className={cn("space-y-4", className)}>
       {/* Controls */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
