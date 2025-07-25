@@ -1,46 +1,58 @@
-import type { Filter } from '../hooks/useExplorer';
+/*───────────────────────────────────────────────────────────────────────────┐
+  ★ Filter DSL - Types and Evaluation Logic
+ └───────────────────────────────────────────────────────────────────────────*/
 
-/**
- * Type guard to check if filter is a simple filter
- */
-function isSimpleFilter(filter: Filter): filter is { field: string; op: "eq" | "neq" | "gt" | "lt" | "contains" | "in"; value: any } {
-  return 'field' in filter && 'op' in filter && 'value' in filter;
+export type FilterOperator = "eq" | "neq" | "gt" | "lt" | "gte" | "lte" | "contains" | "in" | "startsWith" | "endsWith";
+
+export type Filter =
+  | { field: string; op: FilterOperator; value: any }
+  | { op: "and" | "or"; filters: Filter[] };
+
+export interface ExplorerQuery {
+  entityId: string;           // binding.id e.g. "shopify.orders"
+  filters: Filter[];          // AND by default; optional nested ops
 }
 
 /**
  * Evaluates a filter against a data row
- * Returns true if the row passes the filter
  */
 export function evaluateFilter(row: any, filter: Filter): boolean {
-  if ('op' in filter && (filter.op === 'and' || filter.op === 'or')) {
-    // Compound filter
-    const results = filter.filters.map((f) => evaluateFilter(row, f));
-    return filter.op === 'and' 
-      ? results.every(Boolean) 
-      : results.some(Boolean);
+  if ('filters' in filter) {
+    // Logical operator
+    if (filter.op === 'and') {
+      return filter.filters.every(f => evaluateFilter(row, f));
+    } else {
+      return filter.filters.some(f => evaluateFilter(row, f));
+    }
   }
-  
-  // Simple filter
-  if (!isSimpleFilter(filter)) return true;
-  
+
+  // Field comparison
   const value = getNestedValue(row, filter.field);
-  const filterValue = filter.value;
-  
+  const compareValue = filter.value;
+
   switch (filter.op) {
     case 'eq':
-      return value === filterValue;
+      return value === compareValue;
     case 'neq':
-      return value !== filterValue;
+      return value !== compareValue;
     case 'gt':
-      return Number(value) > Number(filterValue);
+      return value > compareValue;
     case 'lt':
-      return Number(value) < Number(filterValue);
+      return value < compareValue;
+    case 'gte':
+      return value >= compareValue;
+    case 'lte':
+      return value <= compareValue;
     case 'contains':
-      return String(value).toLowerCase().includes(String(filterValue).toLowerCase());
+      return String(value).toLowerCase().includes(String(compareValue).toLowerCase());
+    case 'startsWith':
+      return String(value).toLowerCase().startsWith(String(compareValue).toLowerCase());
+    case 'endsWith':
+      return String(value).toLowerCase().endsWith(String(compareValue).toLowerCase());
     case 'in':
-      return Array.isArray(filterValue) && filterValue.includes(value);
+      return Array.isArray(compareValue) && compareValue.includes(value);
     default:
-      return true;
+      return false;
   }
 }
 
@@ -48,50 +60,61 @@ export function evaluateFilter(row: any, filter: Filter): boolean {
  * Evaluates multiple filters against a row (AND by default)
  */
 export function evaluateFilters(row: any, filters: Filter[]): boolean {
-  return filters.every((filter) => evaluateFilter(row, filter));
+  return filters.every(filter => evaluateFilter(row, filter));
 }
 
 /**
- * Gets a nested value from an object using dot notation
- * e.g., getNestedValue({a: {b: 1}}, 'a.b') => 1
+ * Gets nested value from object using dot notation
  */
 function getNestedValue(obj: any, path: string): any {
   return path.split('.').reduce((current, key) => current?.[key], obj);
 }
 
 /**
- * Helper to create common filters
+ * Converts filter to human-readable string
  */
-export const FilterHelpers = {
-  eq: (field: string, value: any): Filter => ({ field, op: 'eq', value }),
-  neq: (field: string, value: any): Filter => ({ field, op: 'neq', value }),
-  gt: (field: string, value: any): Filter => ({ field, op: 'gt', value }),
-  lt: (field: string, value: any): Filter => ({ field, op: 'lt', value }),
-  contains: (field: string, value: any): Filter => ({ field, op: 'contains', value }),
-  in: (field: string, value: any[]): Filter => ({ field, op: 'in', value }),
-  and: (...filters: Filter[]): Filter => ({ op: 'and', filters }),
-  or: (...filters: Filter[]): Filter => ({ op: 'or', filters }),
-};
-
-/**
- * Format filter for display in UI
- */
-export function formatFilter(filter: Filter): string {
-  if ('op' in filter && (filter.op === 'and' || filter.op === 'or')) {
-    const parts = filter.filters.map(formatFilter);
+export function filterToString(filter: Filter): string {
+  if ('filters' in filter) {
+    const parts = filter.filters.map(f => filterToString(f));
     return `(${parts.join(` ${filter.op.toUpperCase()} `)})`;
   }
-  
-  if (!isSimpleFilter(filter)) return '';
-  
-  const opDisplay: Record<string, string> = {
+
+  const opLabels: Record<FilterOperator, string> = {
     eq: '=',
     neq: '≠',
     gt: '>',
     lt: '<',
+    gte: '≥',
+    lte: '≤',
     contains: 'contains',
     in: 'in',
+    startsWith: 'starts with',
+    endsWith: 'ends with'
   };
+
+  return `${filter.field} ${opLabels[filter.op]} ${JSON.stringify(filter.value)}`;
+}
+
+/**
+ * Gets available fields from a dataset
+ */
+export function getFieldsFromData(data: any[]): string[] {
+  if (!data || data.length === 0) return [];
   
-  return `${filter.field} ${opDisplay[filter.op]} ${JSON.stringify(filter.value)}`;
+  const fields = new Set<string>();
+  const sample = data[0];
+  
+  function extractFields(obj: any, prefix = '') {
+    Object.keys(obj).forEach(key => {
+      const fullKey = prefix ? `${prefix}.${key}` : key;
+      if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+        extractFields(obj[key], fullKey);
+      } else {
+        fields.add(fullKey);
+      }
+    });
+  }
+  
+  extractFields(sample);
+  return Array.from(fields).sort();
 } 

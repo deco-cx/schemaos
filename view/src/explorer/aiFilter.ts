@@ -1,208 +1,171 @@
-import type { Filter } from '../hooks/useExplorer';
-import { FilterHelpers } from './filterDsl';
-
-interface EntitySchema {
-  fields: Array<{
-    name: string;
-    type: 'string' | 'number' | 'boolean' | 'date';
-  }>;
-}
+import type { Filter } from './filterDsl';
 
 /**
  * Mock AI filter translator
- * Uses simple keyword matching to convert natural language to filters
+ * Simulates converting natural language to Filter DSL
  */
-export async function translateToFilters(
+export async function translateToFilter(
   naturalLanguage: string,
-  entityId: string,
-  schema?: EntitySchema
+  availableFields: string[]
 ): Promise<Filter[]> {
-  // Simulate AI thinking time
-  await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 500));
-  
-  const nl = naturalLanguage.toLowerCase();
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  const query = naturalLanguage.toLowerCase();
   const filters: Filter[] = [];
+
+  // Pattern matching for common queries
   
-  // Mock entity-specific filter patterns
-  const entityPatterns = getEntityPatterns(entityId);
-  
-  // Check for numeric comparisons
-  const gtMatch = nl.match(/(?:greater than|more than|above|over|>)\s*(\d+)/);
-  const ltMatch = nl.match(/(?:less than|below|under|<)\s*(\d+)/);
-  const eqMatch = nl.match(/(?:equals?|is|=)\s*(\d+)/);
-  
-  // Check for text contains
-  const containsMatch = nl.match(/contains?\s+"([^"]+)"/);
-  const includesMatch = nl.match(/includes?\s+"([^"]+)"/);
-  
-  // Entity-specific patterns
-  for (const pattern of entityPatterns) {
-    const match = nl.match(pattern.regex);
-    if (match) {
-      filters.push(pattern.createFilter(match));
-    }
+  // VIP/Premium customer patterns
+  if (query.includes('vip') || query.includes('premium')) {
+    filters.push({ field: 'segment', op: 'eq', value: 'VIP' });
   }
-  
-  // Generic field detection based on common patterns
-  if (gtMatch) {
-    const field = detectNumericField(nl, entityId);
-    if (field) {
-      filters.push(FilterHelpers.gt(field, Number(gtMatch[1])));
-    }
+
+  // Score/rating patterns
+  const scoreMatch = query.match(/score\s*([><=]+)\s*(\d+)/);
+  if (scoreMatch) {
+    const op = scoreMatch[1];
+    const value = parseInt(scoreMatch[2]);
+    filters.push({
+      field: 'score',
+      op: op === '>' ? 'gt' : op === '<' ? 'lt' : op === '>=' ? 'gte' : op === '<=' ? 'lte' : 'eq',
+      value
+    });
   }
-  
-  if (ltMatch) {
-    const field = detectNumericField(nl, entityId);
-    if (field) {
-      filters.push(FilterHelpers.lt(field, Number(ltMatch[1])));
+
+  // Location patterns
+  const locationPatterns = {
+    'brazil': { field: 'country', op: 'eq' as const, value: 'Brazil' },
+    'brazilian': { field: 'country', op: 'eq' as const, value: 'Brazil' },
+    'usa': { field: 'country', op: 'eq' as const, value: 'USA' },
+    'american': { field: 'country', op: 'eq' as const, value: 'USA' },
+    'new york': { field: 'city', op: 'eq' as const, value: 'New York' },
+    'london': { field: 'city', op: 'eq' as const, value: 'London' },
+    'paris': { field: 'city', op: 'eq' as const, value: 'Paris' }
+  };
+
+  Object.entries(locationPatterns).forEach(([pattern, filter]) => {
+    if (query.includes(pattern)) {
+      filters.push(filter);
     }
-  }
-  
-  if (containsMatch || includesMatch) {
-    const field = detectTextField(nl, entityId);
-    const value = containsMatch?.[1] || includesMatch?.[1];
-    if (field && value) {
-      filters.push(FilterHelpers.contains(field, value));
+  });
+
+  // Status patterns
+  const statusPatterns = {
+    'active': { field: 'status', op: 'eq' as const, value: 'active' },
+    'inactive': { field: 'status', op: 'eq' as const, value: 'inactive' },
+    'pending': { field: 'status', op: 'eq' as const, value: 'pending' },
+    'completed': { field: 'status', op: 'eq' as const, value: 'completed' },
+    'delivered': { field: 'status', op: 'eq' as const, value: 'delivered' }
+  };
+
+  Object.entries(statusPatterns).forEach(([pattern, filter]) => {
+    if (query.includes(pattern)) {
+      filters.push(filter);
     }
-  }
-  
-  // Handle "only" keyword for exclusive filters
-  if (nl.includes('only')) {
-    // VIP customers
-    if (nl.includes('vip')) {
-      filters.push(FilterHelpers.eq('segment', 'VIP'));
-    }
-    // Premium/Pro users
-    if (nl.includes('premium') || nl.includes('pro')) {
-      filters.push(FilterHelpers.eq('plan', 'premium'));
-    }
-    // Active/Inactive
-    if (nl.includes('active')) {
-      filters.push(FilterHelpers.eq('status', 'active'));
-    }
-    if (nl.includes('inactive')) {
-      filters.push(FilterHelpers.eq('status', 'inactive'));
-    }
-  }
-  
-  // Handle location filters
-  const locationMatch = nl.match(/from\s+(\w+)/);
-  if (locationMatch) {
-    const location = locationMatch[1];
-    filters.push(FilterHelpers.contains('address', location));
-  }
-  
-  // Handle date-based filters
-  if (nl.includes('today')) {
+  });
+
+  // Date patterns
+  if (query.includes('today')) {
     const today = new Date().toISOString().split('T')[0];
-    filters.push(FilterHelpers.eq('date', today));
+    filters.push({ field: 'date', op: 'eq', value: today });
   }
-  
-  if (nl.includes('this week')) {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    filters.push(FilterHelpers.gt('date', weekAgo.toISOString()));
+  if (query.includes('this week')) {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    filters.push({ field: 'date', op: 'gte', value: weekAgo });
   }
-  
-  if (nl.includes('this month')) {
-    const monthAgo = new Date();
-    monthAgo.setMonth(monthAgo.getMonth() - 1);
-    filters.push(FilterHelpers.gt('date', monthAgo.toISOString()));
+  if (query.includes('this month')) {
+    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    filters.push({ field: 'date', op: 'gte', value: monthAgo });
   }
-  
-  // Handle OR conditions
-  if (nl.includes(' or ')) {
-    const parts = nl.split(' or ');
-    if (parts.length === 2 && filters.length >= 2) {
-      // Wrap last two filters in OR
-      const filter2 = filters.pop()!;
-      const filter1 = filters.pop()!;
-      filters.push(FilterHelpers.or(filter1, filter2));
+
+  // Amount/price patterns
+  const amountMatch = query.match(/(?:amount|price|total)\s*([><=]+)\s*\$?(\d+)/);
+  if (amountMatch) {
+    const op = amountMatch[1];
+    const value = parseInt(amountMatch[2]);
+    filters.push({
+      field: 'amount',
+      op: op === '>' ? 'gt' : op === '<' ? 'lt' : op === '>=' ? 'gte' : op === '<=' ? 'lte' : 'eq',
+      value
+    });
+  }
+
+  // Channel patterns (for Discord example)
+  if (query.includes('support') && query.includes('channel')) {
+    filters.push({ field: 'channelId', op: 'eq', value: '123456' });
+  }
+
+  // Contains patterns
+  const containsMatch = query.match(/contains?\s+["']([^"']+)["']/);
+  if (containsMatch) {
+    // Try to guess the field
+    const searchTerm = containsMatch[1];
+    if (query.includes('message') || query.includes('text')) {
+      filters.push({ field: 'message', op: 'contains', value: searchTerm });
+    } else if (query.includes('name')) {
+      filters.push({ field: 'name', op: 'contains', value: searchTerm });
+    } else {
+      // Default to name field
+      filters.push({ field: 'name', op: 'contains', value: searchTerm });
     }
   }
-  
+
+  // Logical operators
+  if (query.includes(' or ')) {
+    // If we have multiple filters and "or" is mentioned, wrap them in OR
+    if (filters.length > 1) {
+      return [{ op: 'or', filters }];
+    }
+  }
+
+  // If no filters were created, try to be helpful
+  if (filters.length === 0) {
+    // Look for any quoted text and search for it
+    const quotedMatch = query.match(/["']([^"']+)["']/);
+    if (quotedMatch) {
+      filters.push({ field: 'name', op: 'contains', value: quotedMatch[1] });
+    }
+  }
+
   return filters;
 }
 
-function getEntityPatterns(entityId: string): Array<{
-  regex: RegExp;
-  createFilter: (match: RegExpMatchArray) => Filter;
-}> {
-  const patterns: Record<string, Array<{
-    regex: RegExp;
-    createFilter: (match: RegExpMatchArray) => Filter;
-  }>> = {
+/**
+ * Generate sample AI suggestions based on entity type
+ */
+export function getAISuggestions(entityId: string): string[] {
+  const suggestions: Record<string, string[]> = {
     'crm.customers': [
-      {
-        regex: /score\s*(?:>|greater than|above)\s*(\d+)/,
-        createFilter: (match: RegExpMatchArray) => FilterHelpers.gt('score', Number(match[1])),
-      },
-      {
-        regex: /vip|premium\s+customers?/,
-        createFilter: () => FilterHelpers.eq('segment', 'VIP'),
-      },
+      'VIP customers from Brazil',
+      'score > 80',
+      'active customers this month',
+      'contains "John"'
     ],
     'shopify.orders': [
-      {
-        regex: /(?:total|amount)\s*(?:>|greater than|above)\s*\$?(\d+)/,
-        createFilter: (match: RegExpMatchArray) => FilterHelpers.gt('total', Number(match[1])),
-      },
-      {
-        regex: /pending|processing|shipped|delivered/,
-        createFilter: (match: RegExpMatchArray) => FilterHelpers.eq('status', match[0]),
-      },
+      'orders > $100',
+      'delivered this week',
+      'pending orders',
+      'contains "shoes"'
     ],
-    'analytics.events': [
-      {
-        regex: /event\s+(?:type|name)\s+"([^"]+)"/,
-        createFilter: (match: RegExpMatchArray) => FilterHelpers.eq('eventType', match[1]),
-      },
+    'discord.messages': [
+      'messages in support channel',
+      'messages today',
+      'contains "help"',
+      'messages from moderators'
     ],
+    'slack.messages': [
+      'messages in general channel',
+      'messages this week',
+      'contains "urgent"',
+      'messages from admin'
+    ]
   };
-  
-  return patterns[entityId] || [];
-}
 
-function detectNumericField(nl: string, entityId: string): string | null {
-  // Entity-specific numeric fields
-  const numericFields: Record<string, string[]> = {
-    'crm.customers': ['score', 'totalSpent', 'orderCount'],
-    'shopify.orders': ['total', 'itemCount', 'discount'],
-    'analytics.events': ['duration', 'value'],
-  };
-  
-  const fields = numericFields[entityId] || ['value', 'amount', 'count'];
-  
-  for (const field of fields) {
-    if (nl.includes(field.toLowerCase())) {
-      return field;
-    }
-  }
-  
-  // Default fallbacks
-  if (nl.includes('score')) return 'score';
-  if (nl.includes('total') || nl.includes('amount')) return 'total';
-  if (nl.includes('count')) return 'count';
-  
-  return fields[0] || 'value';
-}
-
-function detectTextField(nl: string, entityId: string): string | null {
-  // Entity-specific text fields
-  const textFields: Record<string, string[]> = {
-    'crm.customers': ['name', 'email', 'segment', 'address'],
-    'shopify.orders': ['customerName', 'email', 'shippingAddress'],
-    'analytics.events': ['eventType', 'userAgent', 'url'],
-  };
-  
-  const fields = textFields[entityId] || ['name', 'description', 'title'];
-  
-  for (const field of fields) {
-    if (nl.includes(field.toLowerCase())) {
-      return field;
-    }
-  }
-  
-  // Default to first available text field
-  return fields[0] || 'name';
+  return suggestions[entityId] || [
+    'active items',
+    'created today',
+    'amount > 100',
+    'contains "test"'
+  ];
 } 

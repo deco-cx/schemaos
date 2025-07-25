@@ -251,13 +251,8 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
     if (stored) {
       const { nodes, edges } = JSON.parse(stored);
       set({ nodes, edges });
-    } else {
-      // If no saved data, load mock data for demonstration
-      set({ 
-        nodes: MockData.nodes.map(node => ({ ...node, type: 'custom' })),
-        edges: MockData.edges
-      });
     }
+    // Start with empty canvas if no saved data
   },
 
   reset: () => {

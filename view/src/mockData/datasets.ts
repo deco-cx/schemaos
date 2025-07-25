@@ -204,6 +204,356 @@ export const MOCK_MAILCHIMP_CAMPAIGNS = Array.from({ length: 156 }).map((_, i) =
   subject: ['Don\'t miss out!', 'New arrivals just for you', 'Your weekly update', 'Special offer inside', 'We miss you!'][i % 5],
 }));
 
+// Discord Messages - Chat platform (based on actual Deco Discord history)
+export const MOCK_DISCORD_MESSAGES = [
+  // Welcome channel
+  {
+    id: 'msg_001',
+    channelId: 'welcome_001',
+    channelName: '👋・welcome',
+    userId: 'user_lucis',
+    username: 'lucis',
+    message: 'Welcome to the Deco team! Excited to have everyone here 🚀',
+    timestamp: randomDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: [],
+    reactions: 5,
+    isPinned: true,
+    role: 'admin',
+    messageType: 'text',
+    mentions: []
+  },
+  
+  // Team-deco channel
+  {
+    id: 'msg_002',
+    channelId: 'team_deco_001',
+    channelName: 'team-deco',
+    userId: 'user_vibegui',
+    username: 'vibegui',
+    message: 'Hey @lucis @bruna @valls, check out this new feature we could implement: https://deco.cx/new-feature',
+    timestamp: randomDate(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: [],
+    reactions: 3,
+    isPinned: false,
+    role: 'member',
+    messageType: 'text',
+    mentions: ['lucis', 'bruna', 'valls']
+  },
+  
+  {
+    id: 'msg_003',
+    channelId: 'team_deco_001',
+    channelName: 'team-deco',
+    userId: 'user_lucis',
+    username: 'lucis',
+    message: 'That looks amazing! The future of e-commerce is definitely heading in this direction 💡',
+    timestamp: randomDate(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: [],
+    reactions: 2,
+    isPinned: false,
+    role: 'admin',
+    messageType: 'reply',
+    mentions: []
+  },
+  
+  {
+    id: 'msg_004',
+    channelId: 'team_deco_001',
+    channelName: 'team-deco',
+    userId: 'user_vibegui',
+    username: 'vibegui',
+    message: '@tavano @candeia @gimenes look at this mockup!',
+    timestamp: randomDate(new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: ['mockup_design.png'],
+    reactions: 4,
+    isPinned: false,
+    role: 'member',
+    messageType: 'image',
+    mentions: ['tavano', 'candeia', 'gimenes']
+  },
+  
+  // Devs channel
+  {
+    id: 'msg_005',
+    channelId: 'devs_001',
+    channelName: 'devs',
+    userId: 'user_valls',
+    username: 'valls',
+    message: 'Just pushed the new schema builder. This will revolutionize how developers work with data!',
+    timestamp: randomDate(new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: [],
+    reactions: 6,
+    isPinned: false,
+    role: 'member',
+    messageType: 'text',
+    mentions: []
+  },
+  
+  {
+    id: 'msg_006',
+    channelId: 'devs_001',
+    channelName: 'devs',
+    userId: 'user_tavano',
+    username: 'tavano',
+    message: 'The performance improvements are incredible! 🔥',
+    timestamp: randomDate(new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: ['performance_chart.png'],
+    reactions: 3,
+    isPinned: false,
+    role: 'member',
+    messageType: 'image',
+    mentions: []
+  },
+  
+  {
+    id: 'msg_007',
+    channelId: 'devs_001',
+    channelName: 'devs',
+    userId: 'user_camudo',
+    username: 'camudo',
+    message: 'Working on the new AI integration - this is game changing stuff',
+    timestamp: randomDate(new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: ['ai_demo.gif'],
+    reactions: 8,
+    isPinned: false,
+    role: 'member',
+    messageType: 'image',
+    mentions: []
+  },
+  
+  // Growth-general channel
+  {
+    id: 'msg_008',
+    channelId: 'growth_001',
+    channelName: 'growth-general',
+    userId: 'user_baby',
+    username: 'baby',
+    message: '@valls @Lucas check out these growth metrics: https://analytics.deco.cx/growth',
+    timestamp: randomDate(new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: [],
+    reactions: 4,
+    isPinned: false,
+    role: 'member',
+    messageType: 'text',
+    mentions: ['valls', 'Lucas']
+  },
+  
+  {
+    id: 'msg_009',
+    channelId: 'growth_001',
+    channelName: 'growth-general',
+    userId: 'user_cecilia',
+    username: 'cecilia',
+    message: 'Our user adoption rate is through the roof! The future looks bright ✨',
+    timestamp: randomDate(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: ['growth_chart.png'],
+    reactions: 7,
+    isPinned: false,
+    role: 'member',
+    messageType: 'image',
+    mentions: []
+  },
+  
+  {
+    id: 'msg_010',
+    channelId: 'growth_001',
+    channelName: 'growth-general',
+    userId: 'user_cecilia',
+    username: 'cecilia',
+    message: '@Gabriel Chamas we should discuss the expansion strategy for Q2',
+    timestamp: randomDate(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: [],
+    reactions: 2,
+    isPinned: false,
+    role: 'member',
+    messageType: 'text',
+    mentions: ['Gabriel Chamas']
+  },
+  
+  // Deco-ajuda-pt-br channel
+  {
+    id: 'msg_011',
+    channelId: 'ajuda_001',
+    channelName: 'deco-ajuda-pt-br',
+    userId: 'user_vibegui',
+    username: 'vibegui',
+    message: '@here Nova documentação disponível: https://docs.deco.cx/pt-br',
+    timestamp: randomDate(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: [],
+    reactions: 5,
+    isPinned: true,
+    role: 'member',
+    messageType: 'text',
+    mentions: ['@here']
+  },
+  
+  {
+    id: 'msg_012',
+    channelId: 'ajuda_001',
+    channelName: 'deco-ajuda-pt-br',
+    userId: 'user_brasileiro',
+    username: 'brasileiro',
+    message: 'Ótimo! Isso vai ajudar muito nossa comunidade brasileira 🇧🇷',
+    timestamp: randomDate(new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: [],
+    reactions: 6,
+    isPinned: false,
+    role: 'member',
+    messageType: 'thread_start',
+    mentions: []
+  },
+  
+  {
+    id: 'msg_013',
+    channelId: 'ajuda_001',
+    channelName: 'deco-ajuda-pt-br',
+    userId: 'user_leandro',
+    username: 'leandro',
+    message: 'A plataforma está evoluindo muito rápido. Impressionante o progresso!',
+    timestamp: randomDate(new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: [],
+    reactions: 4,
+    isPinned: false,
+    role: 'member',
+    messageType: 'text',
+    mentions: []
+  },
+  
+  // Bot messages
+  {
+    id: 'msg_014',
+    channelId: 'team_deco_001',
+    channelName: 'team-deco',
+    userId: 'bot_carl',
+    username: 'Carl-bot',
+    message: '🎮 Activity Update: vibegui is now Playing Deco Schema Builder',
+    timestamp: randomDate(new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: true,
+    attachments: [],
+    reactions: 1,
+    isPinned: false,
+    role: 'bot',
+    messageType: 'activity',
+    mentions: []
+  },
+  
+  {
+    id: 'msg_015',
+    channelId: 'team_deco_001',
+    channelName: 'team-deco',
+    userId: 'bot_support',
+    username: 'deco-support',
+    message: '🎵 Activity Update: Lucas is Listening to "The Future of Web Development" podcast',
+    timestamp: randomDate(new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: true,
+    attachments: [],
+    reactions: 2,
+    isPinned: false,
+    role: 'bot',
+    messageType: 'activity',
+    mentions: []
+  },
+  
+  {
+    id: 'msg_016',
+    channelId: 'devs_001',
+    channelName: 'devs',
+    userId: 'bot_decopilot',
+    username: 'decopilot',
+    message: '🤖 DecopilotAI is now available in this channel!',
+    timestamp: randomDate(new Date(Date.now() - 12 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: true,
+    attachments: [],
+    reactions: 12,
+    isPinned: false,
+    role: 'bot',
+    messageType: 'app_listed',
+    mentions: []
+  },
+  
+  // Recent messages with positive future outlook
+  {
+    id: 'msg_017',
+    channelId: 'team_deco_001',
+    channelName: 'team-deco',
+    userId: 'user_lucis',
+    username: 'lucis',
+    message: 'Looking at our roadmap for 2024 - we\'re going to transform how people build on the web 🌐',
+    timestamp: randomDate(new Date(Date.now() - 8 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: [],
+    reactions: 9,
+    isPinned: false,
+    role: 'admin',
+    messageType: 'thread_start',
+    mentions: []
+  },
+  
+  {
+    id: 'msg_018',
+    channelId: 'growth_001',
+    channelName: 'growth-general',
+    userId: 'user_baby',
+    username: 'baby',
+    message: 'The enterprise adoption is accelerating. Big things coming! 📈',
+    timestamp: randomDate(new Date(Date.now() - 6 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: ['enterprise_metrics.png'],
+    reactions: 7,
+    isPinned: false,
+    role: 'member',
+    messageType: 'image',
+    mentions: []
+  },
+  
+  {
+    id: 'msg_019',
+    channelId: 'devs_001',
+    channelName: 'devs',
+    userId: 'user_valls',
+    username: 'valls',
+    message: 'Thread: New AI-powered component generation https://github.com/deco-cx/ai-components',
+    timestamp: randomDate(new Date(Date.now() - 4 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: [],
+    reactions: 11,
+    isPinned: false,
+    role: 'member',
+    messageType: 'link_thread',
+    mentions: []
+  },
+  
+  {
+    id: 'msg_020',
+    channelId: 'team_deco_001',
+    channelName: 'team-deco',
+    userId: 'user_vibegui',
+    username: 'vibegui',
+    message: '@camudo @lucis @valls this partnership opportunity looks incredible: https://partnerships.deco.cx/2024',
+    timestamp: randomDate(new Date(Date.now() - 2 * 60 * 60 * 1000), new Date()).toISOString(),
+    isBot: false,
+    attachments: [],
+    reactions: 6,
+    isPinned: false,
+    role: 'member',
+    messageType: 'text',
+    mentions: ['camudo', 'lucis', 'valls']
+  }
+];
+
 // Dataset metadata for dynamic loading
 export const DATASET_METADATA = {
   'shopify.orders': {
@@ -247,6 +597,12 @@ export const DATASET_METADATA = {
     title: 'Email Campaigns',
     description: 'Email marketing campaigns with performance metrics',
     icon: '📧',
+  },
+  'discord.messages': {
+    data: MOCK_DISCORD_MESSAGES,
+    title: 'Discord Messages',
+    description: 'Chat messages from Discord channels with user interactions',
+    icon: '💬',
   },
 };
 

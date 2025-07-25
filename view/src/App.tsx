@@ -4,6 +4,7 @@ import Canvas from './canvas/Canvas';
 import Palette from './sidebar/Palette';
 import PropertyPanel from './sidebar/PropertyPanel';
 import { ExplorerDrawer } from './explorer/ExplorerDrawer';
+import { DataSourceModal } from './components/DataSourceModal';
 import { useSchemaStore } from './store';
 import { Button } from './components/ui/button';
 
@@ -12,6 +13,8 @@ function App() {
 
   // Load saved schema on mount
   useEffect(() => {
+    // Uncomment the line below to clear localStorage during development
+    // localStorage.removeItem('schema_v1');
     loadFromLocalStorage();
   }, []);
 
@@ -151,6 +154,9 @@ function App() {
       
       {/* Preview Drawer */}
       <ExplorerDrawer />
+      
+      {/* Data Source Modal */}
+      <DataSourceModal />
     </div>
   );
 }

@@ -539,6 +539,30 @@ export const MOCK_BINDINGS: MockBinding[] = [
         deleted_at: { type: 'string', format: 'date-time', nullable: true }
       }
     }
+  },
+  {
+    id: 'discord.messages',
+    provider: 'Discord',
+    capabilities: ['PaginatedList', 'WebhookSource'],
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Message ID' },
+        channelId: { type: 'string', description: 'Channel ID' },
+        channelName: { type: 'string', description: 'Channel name' },
+        userId: { type: 'string', description: 'User ID' },
+        username: { type: 'string', description: 'Username' },
+        message: { type: 'string', description: 'Message content' },
+        timestamp: { type: 'string', format: 'date-time', description: 'Message timestamp' },
+        isBot: { type: 'boolean', description: 'Is bot message' },
+        attachments: { type: 'array', items: { type: 'string' }, description: 'File attachments' },
+        reactions: { type: 'number', description: 'Reaction count' },
+        isPinned: { type: 'boolean', description: 'Is pinned message' },
+        role: { type: 'string', enum: ['member', 'moderator', 'admin', 'bot'], description: 'User role' },
+        messageType: { type: 'string', enum: ['text', 'reply', 'image', 'thread_start', 'link_thread', 'activity', 'app_listed'], description: 'Type of message' },
+        mentions: { type: 'array', items: { type: 'string' }, description: 'Mentioned usernames' }
+      }
+    }
   }
 ];
 
@@ -835,3 +859,17 @@ export const MockData = {
     },
   ],
 }; 
+
+// Export INTEGRATIONS for DataSourceModal
+export const INTEGRATIONS = MOCK_BINDINGS.map((binding) => ({
+  id: binding.id,
+  name: binding.id.split('.')[1] || 'Unknown',
+  provider: binding.provider,
+  fields: Object.entries(binding.schema?.properties || {}).map(([key, value]: [string, any]) => ({
+    id: key,
+    name: key,
+    type: value.type || 'string',
+    required: value.required || false,
+  })),
+  capabilities: binding.capabilities,
+})); 

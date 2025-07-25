@@ -4,6 +4,7 @@ import type { NodeProps } from 'reactflow';
 import { ChevronDown, ChevronUp, Database, Zap, Download, Check, X } from 'lucide-react';
 import { useSchemaStore } from '../../store';
 import { useExplorer } from '../../hooks/useExplorer';
+import { DATASET_METADATA } from '../../mockData/datasets';
 import type { ObjectNodeData } from '../../store';
 
 export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeData>) {
@@ -16,6 +17,9 @@ export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeD
   const fieldsToShow = data.showAllFields ? data.fields : data.fields.slice(0, 5);
   const hasMoreFields = data.fields.length > 5;
   const isExpanded = data.showAllFields;
+  
+  // Check if this node has data
+  const hasData = data.binding?.id && DATASET_METADATA[data.binding.id as keyof typeof DATASET_METADATA]?.data?.length > 0;
   
   const handleDoubleClick = () => {
     // Check if node has PaginatedList capability and a bindingId
@@ -131,13 +135,18 @@ export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeD
               </button>
             </div>
           ) : (
-            <h3 
-              className="font-semibold text-gray-900 text-sm cursor-pointer hover:text-blue-600 transition-colors select-none"
-              onDoubleClick={handleNameDoubleClick}
-              title="Double-click to edit name"
-            >
-              {data.name}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 
+                className="font-semibold text-gray-900 text-sm cursor-pointer hover:text-blue-600 transition-colors select-none"
+                onDoubleClick={handleNameDoubleClick}
+                title="Double-click to edit name"
+              >
+                {data.name}
+              </h3>
+              {hasData && (
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Has data" />
+              )}
+            </div>
           )}
           {data.binding && !isEditingName && (
             <div className="flex items-center gap-1">
