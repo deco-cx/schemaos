@@ -8,7 +8,14 @@ import { DATASET_METADATA } from '../../mockData/datasets';
 import type { ObjectNodeData } from '../../store';
 
 export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeData>) {
-  const { toggleShowAllFields, toggleFieldExpansion, updateNode } = useSchemaStore();
+  const { 
+    toggleShowAllFields, 
+    toggleFieldExpansion, 
+    updateNode,
+    selectedNodeIds,
+    isSelectionMode,
+    toggleNodeSelection,
+  } = useSchemaStore();
   const { open: openExplorer } = useExplorer();
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState('');
@@ -17,6 +24,7 @@ export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeD
   const fieldsToShow = data.showAllFields ? data.fields : data.fields.slice(0, 5);
   const hasMoreFields = data.fields.length > 5;
   const isExpanded = data.showAllFields;
+  const isNodeSelected = selectedNodeIds.has(id);
   
   // Check if this node has data
   const hasData = data.binding?.id && DATASET_METADATA[data.binding.id as keyof typeof DATASET_METADATA]?.data?.length > 0;
@@ -92,14 +100,35 @@ export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeD
 
   const hasPaginatedList = data.binding?.capabilities?.includes('PaginatedList');
 
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleNodeSelection(id);
+  };
+
   return (
     <div 
-      className={`bg-white rounded-lg border-2 transition-all duration-200 min-w-[280px] ${
-        selected ? 'border-blue-500 shadow-lg' : 'border-gray-200 shadow-sm hover:shadow-md'
+      className={`bg-white rounded-lg border-2 transition-all duration-200 min-w-[280px] relative ${
+        selected ? 'border-blue-500 shadow-lg' : isNodeSelected ? 'border-sky-400 ring-2 ring-sky-400 ring-opacity-50 shadow-lg' : 'border-gray-200 shadow-sm hover:shadow-md'
       } ${hasPaginatedList && !isEditingName ? 'cursor-pointer' : ''}`}
       onDoubleClick={isEditingName ? undefined : handleDoubleClick}
       title={hasPaginatedList && !isEditingName ? 'Double-click to preview data (or double-click title to edit name)' : undefined}
     >
+      {/* Selection Checkbox */}
+      {isSelectionMode && (
+        <div 
+          className="absolute -top-2 -right-2 z-10 w-6 h-6 bg-white border-2 border-gray-300 rounded-md cursor-pointer transition-all duration-200 flex items-center justify-center hover:border-sky-400"
+          style={{ 
+            backgroundColor: isNodeSelected ? '#0ea5e9' : 'white',
+            borderColor: isNodeSelected ? '#0ea5e9' : '#d1d5db'
+          }}
+          onMouseDown={handleCheckboxClick}
+          title="Select node"
+        >
+          {isNodeSelected && (
+            <Check className="w-4 h-4 text-white" />
+          )}
+        </div>
+      )}
       <Handle type="target" position={Position.Left} className="w-3 h-3 bg-gray-400" />
       <Handle type="source" position={Position.Right} className="w-3 h-3 bg-gray-400" />
       
@@ -175,7 +204,7 @@ export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeD
             <p className="text-sm text-gray-500 italic">No fields yet</p>
           ) : (
             <div className="space-y-2">
-              {fieldsToShow.map((field, index) => (
+              {fieldsToShow.map((field) => (
                 <div key={field.id}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

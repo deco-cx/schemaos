@@ -1,0 +1,294 @@
+# AI Modal Unification Pattern
+
+> This guide documents the unified AI modal pattern implemented in SchemaOS for consistent AI interactions across different use cases.
+
+---
+
+## 🏗️ Architecture Overview
+
+The SchemaOS project implements a **unified AI modal pattern** where all AI interactions flow through a single modal component (`NodeAIModal`) that handles different modes of operation.
+
+### Unified Modal Component
+
+```typescript
+// Single modal handles all AI operations
+<NodeAIModal />
+
+// Three operation modes:
+type AIMode = 'create' | 'edit' | 'sql';
+```
+
+---
+
+## 🔄 Operation Modes
+
+### 1. CREATE Mode
+- **Trigger**: AI Schema button in header
+- **Context**: No nodes selected (`selectedNodeIds.size === 0`)
+- **Purpose**: Create new schema from scratch
+- **Output**: New nodes and relationships
+
+```typescript
+openNodeAIModal('create'); // Creates new schema
+```
+
+### 2. EDIT Mode
+- **Trigger**: "Edit with AI" from selection menu
+- **Context**: Nodes selected (`selectedNodeIds.size > 0`)
+- **Purpose**: Modify existing schema nodes
+- **Output**: Updated node structures
+
+```typescript
+openNodeAIModal('edit'); // Edits selected nodes
+```
+
+### 3. SQL Mode
+- **Trigger**: "Generate SQL" from selection menu
+- **Context**: Nodes selected (`selectedNodeIds.size > 0`)
+- **Purpose**: Generate SQL from schema
+- **Output**: CREATE TABLE statements
+
+```typescript
+openNodeAIModal('sql'); // Generates SQL
+```
+
+---
+
+## 🎯 Implementation Pattern
+
+### Store Integration
+```typescript
+interface SchemaStore {
+  selectedNodeIds: Set<string>
+  isNodeAIModalOpen: boolean
+  nodeAIMode: 'create' | 'edit' | 'sql' | null
+  
+  openNodeAIModal: (mode: 'create' | 'edit' | 'sql') => void
+  closeNodeAIModal: () => void
+}
+```
+
+### Modal State Management
+```typescript
+export default function NodeAIModal() {
+  const {
+    selectedNodeIds,
+    nodeAIMode,
+    nodes,
+    addNode,     // For create mode
+    updateNode,  // For edit mode
+  } = useSchemaStore();
+  
+  const selectedNodes = nodes.filter(node => selectedNodeIds.has(node.id));
+  
+  // Handle different modes
+  const handleApplyChanges = () => {
+    if (nodeAIMode === 'create') {
+      // Create new nodes with positioning
+    } else if (nodeAIMode === 'edit') {
+      // Update existing nodes
+    }
+    // SQL mode just copies/downloads
+  };
+}
+```
+
+### Dynamic UI Adaptation
+```typescript
+// Context-sensitive placeholders
+const getPlaceholder = (mode: string) => {
+  switch (mode) {
+    case 'create': return "Describe the schema you want to create...";
+    case 'edit': return "Describe the changes you want to make...";
+    case 'sql': return "Describe what SQL you want to generate...";
+  }
+};
+
+// Mode-specific result display
+{nodeAIMode === 'create' && (
+  <div className="bg-blue-50">
+    No nodes selected – new schema will be created
+  </div>
+)}
+```
+
+---
+
+## 📊 Schema Structures
+
+### Create Mode Schema
+```typescript
+{
+  type: 'object',
+  properties: {
+    nodes: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          fields: { type: 'array', items: { /* field schema */ } }
+        }
+      }
+    },
+    edges: { type: 'array', items: { /* relationship schema */ } },
+    explanation: { type: 'string' }
+  }
+}
+```
+
+### Edit Mode Schema
+```typescript
+{
+  type: 'object',
+  properties: {
+    nodes: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' }, // Preserve existing IDs
+          name: { type: 'string' },
+          fields: { type: 'array', items: { /* field schema */ } }
+        }
+      }
+    },
+    explanation: { type: 'string' }
+  }
+}
+```
+
+---
+
+## 🛡️ Data Integrity Patterns
+
+### ID Preservation
+```typescript
+// For edit mode - preserve existing field IDs
+const updatedFields = updatedNode.fields.map((field: any) => {
+  const existingField = existingNode.data.fields.find(f => f.name === field.name);
+  
+  return {
+    ...field,
+    id: existingField?.id || `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    // Preserve schema/expanded properties
+    ...(existingField && {
+      schema: existingField.schema,
+      expanded: existingField.expanded
+    })
+  };
+});
+```
+
+### Node Positioning (Create Mode)
+```typescript
+// Automatic grid positioning for new nodes
+const spacing = 250;
+const position = {
+  x: baseX + (index % 3) * spacing,
+  y: baseY + Math.floor(index / 3) * spacing
+};
+```
+
+### Relationship Mapping
+```typescript
+// Map AI node names to actual IDs for edges
+const nodeMap = new Map<string, string>();
+result.nodes.forEach((node, index) => {
+  const nodeId = `node_${Date.now()}_${index}`;
+  nodeMap.set(node.name, nodeId);
+});
+
+// Create edges using mapped IDs
+const sourceId = nodeMap.get(edge.source);
+const targetId = nodeMap.get(edge.target);
+```
+
+---
+
+## 🎨 UX Guidelines
+
+### Context Awareness
+- Show selected nodes for edit/sql modes
+- Show "new schema" message for create mode
+- Dynamic button labels based on mode
+
+### Progressive Disclosure
+```typescript
+// Show different UI elements based on state
+{!result && !isLoading && (
+  <UserPromptInput />
+)}
+
+{isLoading && (
+  <LoadingSpinner />
+)}
+
+{result && (
+  <ResultDisplay mode={nodeAIMode} />
+)}
+```
+
+### Action Buttons
+- **Apply Changes**: Only for create/edit modes
+- **Copy/Download**: All modes
+- **New Request**: Reset for new input
+
+---
+
+## 🔑 Key Benefits
+
+1. **Code Reuse**: Single modal handles all AI operations
+2. **Consistent UX**: Same interface patterns across features
+3. **Maintainability**: One component to update for UI changes
+4. **Extensibility**: Easy to add new AI modes
+5. **Type Safety**: Unified types and interfaces
+
+---
+
+## ⚠️ Implementation Rules
+
+### DO:
+- Use the unified modal for all AI interactions
+- Implement mode-specific logic inside the modal
+- Preserve existing data when editing
+- Use context-sensitive UI elements
+
+### DON'T:
+- Create separate modals for different AI features
+- Break the unified state management pattern
+- Lose data integrity during transformations
+- Ignore the mode-specific schemas
+
+---
+
+## 📚 Usage Examples
+
+### Adding New AI Mode
+```typescript
+// 1. Extend the type
+type AIMode = 'create' | 'edit' | 'sql' | 'newmode';
+
+// 2. Add schema for new mode
+const getSchemaForMode = (mode: AIMode) => {
+  // ... existing modes
+  if (mode === 'newmode') {
+    return { /* new schema */ };
+  }
+};
+
+// 3. Add UI handling
+const getPlaceholder = (mode: AIMode) => {
+  // ... existing modes
+  if (mode === 'newmode') return "New mode description...";
+};
+
+// 4. Add application logic
+const handleApplyChanges = () => {
+  if (nodeAIMode === 'newmode') {
+    // Handle new mode
+  }
+};
+```
+
+This pattern ensures all AI functionality remains unified, maintainable, and consistent across the application.

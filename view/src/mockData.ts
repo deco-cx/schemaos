@@ -566,7 +566,7 @@ export const MOCK_BINDINGS: MockBinding[] = [
   }
 ];
 
-// Field type suggestions for different contexts
+// Field type suggestions for different contexts - using standardized types
 export const FIELD_TYPE_SUGGESTIONS = [
   'string',
   'number',
@@ -575,14 +575,10 @@ export const FIELD_TYPE_SUGGESTIONS = [
   'datetime',
   'email',
   'url',
-  'phone',
-  'currency',
-  'percent',
+  'uuid',
   'json',
   'array',
-  'uuid',
-  'reference',
-  'enum'
+  'object'
 ];
 
 // Sample field suggestions based on common patterns (updated with real-world examples)

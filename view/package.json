@@ -29,6 +29,7 @@
     "lucide-react": "^0.476.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-hotkeys-hook": "^5.1.0",
     "reactflow": "^11.11.4",
     "tailwind-merge": "^3.0.2",
     "zod": "^3.25.76",

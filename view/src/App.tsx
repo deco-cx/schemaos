@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { RotateCcw, Save, Download, Upload } from 'lucide-react';
+import { useEffect } from 'react';
+import { RotateCcw, Save, Download, Upload, Sparkles } from 'lucide-react';
 import Canvas from './canvas/Canvas';
 import Palette from './sidebar/Palette';
 import PropertyPanel from './sidebar/PropertyPanel';
@@ -9,7 +9,7 @@ import { useSchemaStore } from './store';
 import { Button } from './components/ui/button';
 
 function App() {
-  const { loadFromLocalStorage, saveToLocalStorage, reset, nodes, edges } = useSchemaStore();
+  const { loadFromLocalStorage, saveToLocalStorage, reset, nodes, edges, openNodeAIModal } = useSchemaStore();
 
   // Load saved schema on mount
   useEffect(() => {
@@ -70,6 +70,14 @@ function App() {
         </div>
         
         <div className="flex items-center gap-2">
+          <Button
+            onClick={() => openNodeAIModal('create')}
+            size="sm"
+            className="h-8 bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            <Sparkles className="w-3 h-3 mr-1" />
+            AI Schema
+          </Button>
           <Button
             variant="outline"
             size="sm"

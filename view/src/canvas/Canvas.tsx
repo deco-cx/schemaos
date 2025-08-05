@@ -9,13 +9,16 @@ import ReactFlow, {
   addEdge,
 } from 'reactflow';
 import type { Node, Edge, Connection } from 'reactflow';
+import { useHotkeys } from 'react-hotkeys-hook';
 import 'reactflow/dist/style.css';
 
 import { useSchemaStore } from '../store';
 import type { ObjectNode, RelationEdge as RelationEdgeType, ObjectNodeData } from '../store';
 import CustomNode from './nodes/CustomNode';
 import RelationEdgeComponent from './edges/RelationEdge';
-import { suggestRelationships } from '../aiMock';
+import SelectionMenu from './SelectionMenu';
+import SelectionModeToggle from './SelectionModeToggle';
+import NodeAIModal from './NodeAIModal';
 
 const nodeTypes = {
   custom: CustomNode,
@@ -38,36 +41,23 @@ function CanvasContent() {
     onNodesChange,
     onEdgesChange,
     addEdge: addEdgeToStore,
+    // Selection state
+    selectedNodeIds,
+    isSelectionMode,
+    setSelectionMode,
+    selectNodes,
+    clearSelection,
+    toggleNodeSelection,
+    openNodeAIModal,
   } = useSchemaStore();
 
+  // Disable manual edge creation - edges are now created automatically from field relations
   const onConnect = useCallback(
-    async (params: Connection) => {
-      if (!params.source || !params.target) return;
-      
-      const sourceNode = nodes.find(n => n.id === params.source);
-      const targetNode = nodes.find(n => n.id === params.target);
-      
-      if (!sourceNode || !targetNode) return;
-
-      // Get AI suggestion for relationship type
-      const suggestion = await suggestRelationships(
-        sourceNode.data.name,
-        targetNode.data.name
-      );
-
-      const newEdge: RelationEdgeType = {
-        id: `${params.source}-${params.target}`,
-        source: params.source,
-        target: params.target,
-        type: 'relation',
-        data: {
-          label: suggestion.label,
-        },
-      };
-
-      addEdgeToStore(newEdge);
+    (params: Connection) => {
+      // Do nothing - edges are managed through field relations
+      console.log('Manual edge creation is disabled. Use field relations instead.');
     },
-    [nodes, addEdgeToStore]
+    []
   );
 
   const onDrop = useCallback(
@@ -149,18 +139,62 @@ function CanvasContent() {
   }, []);
 
   const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
-      setSelectedNode(node.id);
+    (event: React.MouseEvent, node: Node) => {
+      if (isSelectionMode) {
+        if (event.ctrlKey || event.metaKey) {
+          toggleNodeSelection(node.id);
+        } else {
+          // Single select in selection mode
+          selectNodes([node.id]);
+        }
+      } else {
+        if (event.ctrlKey || event.metaKey) {
+          toggleNodeSelection(node.id);
+        } else {
+          setSelectedNode(node.id);
+          clearSelection();
+        }
+      }
     },
-    [setSelectedNode]
+    [isSelectionMode, toggleNodeSelection, selectNodes, setSelectedNode, clearSelection]
+  );
+
+  const onSelectionChange = useCallback(
+    ({ nodes: selectedNodes }: { nodes: Node[] }) => {
+      if (isSelectionMode) {
+        selectNodes(selectedNodes.map(n => n.id));
+      }
+    },
+    [isSelectionMode, selectNodes]
   );
 
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
-  }, [setSelectedNode]);
+    if (isSelectionMode) {
+      clearSelection();
+    }
+  }, [setSelectedNode, isSelectionMode, clearSelection]);
+
+  // Keyboard shortcuts
+  useHotkeys('s', () => setSelectionMode(true), { preventDefault: true });
+  useHotkeys('v', () => setSelectionMode(false), { preventDefault: true });
+  useHotkeys('p', () => setSelectionMode(false), { preventDefault: true });
+  useHotkeys('escape', () => {
+    setSelectionMode(false);
+    clearSelection();
+  }, { preventDefault: true });
 
   return (
-    <div className="flex-1 h-full" ref={reactFlowWrapper}>
+    <div className="flex-1 h-full relative" ref={reactFlowWrapper}>
+      <SelectionModeToggle />
+      <SelectionMenu
+        count={selectedNodeIds.size}
+        onEditAI={() => openNodeAIModal('edit')}
+        onGenerateSQL={() => openNodeAIModal('sql')}
+        onClear={clearSelection}
+      />
+      <NodeAIModal />
+      
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -170,11 +204,15 @@ function CanvasContent() {
         onDrop={onDrop}
         onDragOver={onDragOver}
         onNodeClick={onNodeClick}
+        onSelectionChange={onSelectionChange}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
         className="bg-gray-50"
+        selectionOnDrag={isSelectionMode}
+        panOnDrag={!isSelectionMode}
+        selectNodesOnDrag={isSelectionMode}
       >
         <Background color="#e5e7eb" gap={16} />
         <Controls className="bg-white border border-gray-200 shadow-sm" />

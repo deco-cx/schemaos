@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { Node, Edge, NodeChange, EdgeChange } from 'reactflow'
 import { applyNodeChanges, applyEdgeChanges } from 'reactflow'
-import { MockData } from './mockData'
+import type { Field } from './lib/schema-types'
 
 export type MockCapability = 'PaginatedList' | 'WebhookSource' | 'BulkExport'
 
@@ -12,16 +12,8 @@ export interface MockBinding {
   schema?: any // JSON Schema
 }
 
-export interface Field {
-  id: string
-  name: string
-  type: string
-  required?: boolean
-  description?: string
-  // For expandable fields (arrays/objects)
-  schema?: any // JSON Schema for nested structure
-  expanded?: boolean // UI state for expansion
-}
+// Field interface is now imported from schema-types.ts
+// This ensures consistency between store and AI generation
 
 export interface ObjectNodeData {
   id: string
@@ -44,6 +36,12 @@ interface SchemaStore {
   nodes: ObjectNode[]
   edges: RelationEdge[]
   selectedNodeId: string | null
+  
+  // Multi-selection state
+  selectedNodeIds: Set<string>
+  isSelectionMode: boolean
+  isNodeAIModalOpen: boolean
+  nodeAIMode: 'create' | 'edit' | 'sql' | null
 
   // Node operations
   addNode: (node: ObjectNode) => void
@@ -57,8 +55,19 @@ interface SchemaStore {
   deleteEdge: (id: string) => void
   onEdgesChange: (changes: EdgeChange[]) => void
   
+  // Bulk operations
+  addMany: (nodes: ObjectNode[], edges: RelationEdge[]) => void
+  
   // Selection
   setSelectedNode: (id: string | null) => void
+  
+  // Multi-selection operations
+  toggleNodeSelection: (id: string) => void
+  selectNodes: (ids: string[]) => void
+  clearSelection: () => void
+  setSelectionMode: (mode: boolean) => void
+  openNodeAIModal: (mode: 'create' | 'edit' | 'sql') => void
+  closeNodeAIModal: () => void
   
   // Field operations
   addField: (nodeId: string, field: Field) => void
@@ -68,6 +77,9 @@ interface SchemaStore {
   
   // UI operations
   toggleShowAllFields: (nodeId: string) => void
+  
+  // Edge sync
+  syncEdgesWithRelations: () => void
   
   // Persistence
   saveToLocalStorage: () => void
@@ -79,6 +91,12 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
   nodes: [],
   edges: [],
   selectedNodeId: null,
+  
+  // Multi-selection state
+  selectedNodeIds: new Set<string>(),
+  isSelectionMode: false,
+  isNodeAIModalOpen: false,
+  nodeAIMode: null,
 
   // Node operations
   addNode: (node) => {
@@ -98,11 +116,16 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
   },
 
   deleteNode: (id) => {
-    set((state) => ({
-      nodes: state.nodes.filter((node) => node.id !== id),
-      edges: state.edges.filter((edge) => edge.source !== id && edge.target !== id),
-      selectedNodeId: state.selectedNodeId === id ? null : state.selectedNodeId,
-    }));
+    set((state) => {
+      const newSelection = new Set(state.selectedNodeIds);
+      newSelection.delete(id);
+      return {
+        nodes: state.nodes.filter((node) => node.id !== id),
+        edges: state.edges.filter((edge) => edge.source !== id && edge.target !== id),
+        selectedNodeId: state.selectedNodeId === id ? null : state.selectedNodeId,
+        selectedNodeIds: newSelection,
+      };
+    });
     get().saveToLocalStorage();
   },
 
@@ -144,9 +167,54 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  // Bulk operations
+  addMany: (nodes, edges) => {
+    set((state) => ({
+      nodes: [...state.nodes, ...nodes.map(node => ({ ...node, type: 'custom' } as ObjectNode))],
+      edges: [...state.edges, ...edges],
+    }));
+    get().saveToLocalStorage();
+  },
+
   // Selection
   setSelectedNode: (id) => {
     set({ selectedNodeId: id });
+  },
+
+  // Multi-selection operations
+  toggleNodeSelection: (id) => {
+    set((state) => {
+      const newSelection = new Set(state.selectedNodeIds);
+      if (newSelection.has(id)) {
+        newSelection.delete(id);
+      } else {
+        newSelection.add(id);
+      }
+      return { selectedNodeIds: newSelection };
+    });
+  },
+
+  selectNodes: (ids) => {
+    set({ selectedNodeIds: new Set(ids) });
+  },
+
+  clearSelection: () => {
+    set({ selectedNodeIds: new Set<string>() });
+  },
+
+  setSelectionMode: (mode) => {
+    set({ isSelectionMode: mode });
+    if (!mode) {
+      get().clearSelection();
+    }
+  },
+
+  openNodeAIModal: (mode) => {
+    set({ isNodeAIModalOpen: true, nodeAIMode: mode });
+  },
+
+  closeNodeAIModal: () => {
+    set({ isNodeAIModalOpen: false, nodeAIMode: null });
   },
 
   // Field operations
@@ -165,6 +233,10 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
       ),
     }));
     get().saveToLocalStorage();
+    // Sync edges if the new field has a relation
+    if (field.relation) {
+      get().syncEdgesWithRelations();
+    }
   },
 
   updateField: (nodeId, fieldId, updates) => {
@@ -184,9 +256,15 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
       ),
     }));
     get().saveToLocalStorage();
+    // Sync edges after field update (relations might have changed)
+    get().syncEdgesWithRelations();
   },
 
   deleteField: (nodeId, fieldId) => {
+    // Check if the field being deleted has a relation
+    const node = get().nodes.find(n => n.id === nodeId);
+    const fieldHasRelation = node?.data.fields.find(f => f.id === fieldId)?.relation;
+    
     set((state) => ({
       nodes: state.nodes.map((node) =>
         node.id === nodeId
@@ -201,6 +279,11 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
       ),
     }));
     get().saveToLocalStorage();
+    
+    // Sync edges if the deleted field had a relation
+    if (fieldHasRelation) {
+      get().syncEdgesWithRelations();
+    }
   },
 
   toggleFieldExpansion: (nodeId, fieldId) => {
@@ -240,6 +323,70 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
     get().saveToLocalStorage();
   },
 
+  // Sync edges based on field relations
+  syncEdgesWithRelations: () => {
+    const { nodes } = get();
+    const expectedEdges = new Map<string, RelationEdge>();
+    
+    // Build expected edges from field relations
+    nodes.forEach(sourceNode => {
+      sourceNode.data.fields.forEach(field => {
+        if (field.relation) {
+          // Find target node by name
+          const targetNode = nodes.find(n => n.data.name === field.relation!.targetEntity);
+          if (targetNode) {
+            const edgeKey = `${sourceNode.id}-${targetNode.id}`;
+            const label = field.relation.isArray ? 'N-N' : field.relation.storage === 'join-table' ? 'N-N' : '1-N';
+            
+            expectedEdges.set(edgeKey, {
+              id: `relation_${edgeKey}`,
+              source: sourceNode.id,
+              target: targetNode.id,
+              type: 'relation',
+              data: {
+                label: label as '1-1' | '1-N' | 'N-N'
+              }
+            });
+          }
+        }
+      });
+    });
+    
+    // Get current edges (only relation edges)
+    const currentEdges = get().edges.filter(e => e.type === 'relation');
+    const currentEdgeKeys = new Set(currentEdges.map(e => `${e.source}-${e.target}`));
+    
+    // Determine edges to add and remove
+    const edgesToAdd: RelationEdge[] = [];
+    const edgesToRemove: string[] = [];
+    
+    // Find edges to add
+    expectedEdges.forEach((edge, key) => {
+      if (!currentEdgeKeys.has(key)) {
+        edgesToAdd.push(edge);
+      }
+    });
+    
+    // Find edges to remove
+    currentEdges.forEach(edge => {
+      const key = `${edge.source}-${edge.target}`;
+      if (!expectedEdges.has(key)) {
+        edgesToRemove.push(edge.id);
+      }
+    });
+    
+    // Apply changes
+    if (edgesToAdd.length > 0 || edgesToRemove.length > 0) {
+      set(state => ({
+        edges: [
+          ...state.edges.filter(e => !edgesToRemove.includes(e.id)),
+          ...edgesToAdd
+        ]
+      }));
+      get().saveToLocalStorage();
+    }
+  },
+
   // Persistence
   saveToLocalStorage: () => {
     const { nodes, edges } = get();
@@ -256,7 +403,15 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
   },
 
   reset: () => {
-    set({ nodes: [], edges: [], selectedNodeId: null });
+    set({ 
+      nodes: [], 
+      edges: [], 
+      selectedNodeId: null,
+      selectedNodeIds: new Set<string>(),
+      isSelectionMode: false,
+      isNodeAIModalOpen: false,
+      nodeAIMode: null,
+    });
     localStorage.removeItem('schema_v1');
   },
 })); 
