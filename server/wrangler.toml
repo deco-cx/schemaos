@@ -11,9 +11,13 @@ binding = "ASSETS"
 
 [deco]
 workspace = "testing-workers"
-bindings = []
 enable_workflows = true
 local = false
+
+[[deco.bindings]]
+name = "USER_MANAGEMENT"
+type = "mcp"
+integration_id = "i:user-management"
 
 [[migrations]]
 tag = "v1"

@@ -1,21 +1,67 @@
-import { useEffect } from 'react';
-import { RotateCcw, Save, Download, Upload, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { RotateCcw, Download, Upload, Sparkles, CheckCircle, Clock, ChevronLeft, ChevronRight, PanelLeftClose, PanelRightClose } from 'lucide-react';
 import Canvas from './canvas/Canvas';
 import Palette from './sidebar/Palette';
 import PropertyPanel from './sidebar/PropertyPanel';
 import { ExplorerDrawer } from './explorer/ExplorerDrawer';
 import { DataSourceModal } from './components/DataSourceModal';
+import { WorkspaceSwitcher } from './components/WorkspaceSwitcher';
+import { ProjectSwitcher } from './components/ProjectSwitcher';
 import { useSchemaStore } from './store';
+import { useWorkspaceStore } from './store/workspaceStore';
+import { useSchemaIntegration } from './hooks/useSchemaIntegration';
 import { Button } from './components/ui/button';
 
 function App() {
   const { loadFromLocalStorage, saveToLocalStorage, reset, nodes, edges, openNodeAIModal } = useSchemaStore();
+  const { 
+    actions: workspaceActions, 
+    isLoading: workspaceLoading, 
+    error: workspaceError,
+    currentProject 
+  } = useWorkspaceStore();
+  
+  // Integration hook for auto-save and project switching
+  const { isAutoSaving, lastSaved } = useSchemaIntegration();
 
-  // Load saved schema on mount
+  // Sidebar collapse state
+  const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
+  const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
+
+  // Initialize workspaces on mount
   useEffect(() => {
-    // Uncomment the line below to clear localStorage during development
-    // localStorage.removeItem('schema_v1');
-    loadFromLocalStorage();
+    workspaceActions.initialize();
+  }, []);
+
+  // Legacy fallback - Load saved schema if no workspace system
+  useEffect(() => {
+    // Only load from legacy storage if no current project
+    if (!currentProject) {
+      // Uncomment the line below to clear localStorage during development
+      // localStorage.removeItem('schema_v1');
+      loadFromLocalStorage();
+    }
+  }, [currentProject, loadFromLocalStorage]);
+
+  // Keyboard shortcuts for sidebar toggles
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case '1':
+            e.preventDefault();
+            setIsLeftSidebarCollapsed(prev => !prev);
+            break;
+          case '2':
+            e.preventDefault();
+            setIsRightSidebarCollapsed(prev => !prev);
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleExport = () => {
@@ -65,8 +111,46 @@ function App() {
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold text-gray-900">SchemaOS</h1>
-          <span className="text-sm text-gray-500">AI-s Data Schema Editor</span>
+          <div className="flex flex-col gap-1">
+            <h1 className="text-xl font-bold text-gray-900">SchemaOS</h1>
+            <span className="text-sm text-gray-500">AI-Powered Data Schema Editor</span>
+          </div>
+          
+          {/* Workspace and Project Switchers */}
+          <div className="flex items-center gap-3">
+            <WorkspaceSwitcher />
+            <span className="text-gray-300">→</span>
+            <ProjectSwitcher />
+          </div>
+          
+          {/* Save Status & Info */}
+          <div className="flex flex-col items-end gap-1 text-xs">
+            {/* Save Status */}
+            <div className="flex items-center gap-1">
+              {isAutoSaving ? (
+                <>
+                  <Clock className="h-3 w-3 text-amber-500" />
+                  <span className="text-amber-600">Saving...</span>
+                </>
+              ) : lastSaved ? (
+                <>
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                  <span className="text-green-600">Saved</span>
+                </>
+              ) : null}
+            </div>
+            
+            {/* Local Storage Message */}
+            <div className="text-gray-500">All data is saved locally</div>
+            
+            {/* Loading/Error States */}
+            {workspaceLoading && (
+              <div className="text-amber-600">Loading workspaces...</div>
+            )}
+            {workspaceError && (
+              <div className="text-red-600">Error: {workspaceError}</div>
+            )}
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
@@ -78,15 +162,7 @@ function App() {
             <Sparkles className="w-3 h-3 mr-1" />
             AI Schema
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={saveToLocalStorage}
-            className="h-8"
-          >
-            <Save className="w-3 h-3 mr-1" />
-            Save
-          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -120,18 +196,70 @@ function App() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Palette */}
-        <aside className="w-64 bg-white border-r border-gray-200 overflow-y-auto">
-          <Palette />
+        <aside className={`${isLeftSidebarCollapsed ? 'w-0' : 'w-64'} bg-white border-r border-gray-200 overflow-hidden transition-all duration-300 relative`}>
+          <div className={`${isLeftSidebarCollapsed ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300 h-full overflow-y-auto`}>
+            <Palette />
+          </div>
+          
+          {/* Left Sidebar Toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed)}
+            className="absolute top-2 right-2 h-7 w-7 p-0 hover:bg-gray-100 bg-white/80 shadow-sm z-10"
+            title={isLeftSidebarCollapsed ? "Show palette (Ctrl+1)" : "Hide palette (Ctrl+1)"}
+          >
+            {isLeftSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
         </aside>
 
         {/* Canvas */}
-        <main className="flex-1">
+        <main className="flex-1 relative">
           <Canvas />
+          
+          {/* Floating toggle for collapsed left sidebar */}
+          {isLeftSidebarCollapsed && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsLeftSidebarCollapsed(false)}
+              className="absolute top-4 left-4 h-10 w-10 p-0 bg-white shadow-lg hover:bg-gray-50 z-50 border-2"
+              title="Show palette"
+            >
+              <PanelLeftClose className="h-5 w-5" />
+            </Button>
+          )}
+          
+          {/* Floating toggle for collapsed right sidebar */}
+          {isRightSidebarCollapsed && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsRightSidebarCollapsed(false)}
+              className="absolute top-4 right-4 h-10 w-10 p-0 bg-white shadow-lg hover:bg-gray-50 z-50 border-2"
+              title="Show properties"
+            >
+              <PanelRightClose className="h-5 w-5" />
+            </Button>
+          )}
         </main>
 
         {/* Right Sidebar - Properties */}
-        <aside className="w-96 bg-white border-l border-gray-200 overflow-hidden">
-          <PropertyPanel />
+        <aside className={`${isRightSidebarCollapsed ? 'w-0' : 'w-96'} bg-white border-l border-gray-200 overflow-hidden transition-all duration-300 relative`}>
+          <div className={`${isRightSidebarCollapsed ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300 h-full overflow-y-auto`}>
+            <PropertyPanel />
+          </div>
+          
+          {/* Right Sidebar Toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
+            className="absolute top-2 left-2 h-7 w-7 p-0 hover:bg-gray-100 bg-white/80 shadow-sm z-10"
+            title={isRightSidebarCollapsed ? "Show properties (Ctrl+2)" : "Hide properties (Ctrl+2)"}
+          >
+            {isRightSidebarCollapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </Button>
         </aside>
       </div>
 

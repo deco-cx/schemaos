@@ -84,6 +84,8 @@ interface SchemaStore {
   // Persistence
   saveToLocalStorage: () => void
   loadFromLocalStorage: () => void
+  loadProjectData: (projectData: { nodes?: ObjectNode[], edges?: RelationEdge[] } | null) => void
+  getProjectData: () => { nodes: ObjectNode[], edges: RelationEdge[] }
   reset: () => void
 }
 
@@ -400,6 +402,23 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
       set({ nodes, edges });
     }
     // Start with empty canvas if no saved data
+  },
+
+  // New methods for workspace integration
+  loadProjectData: (projectData) => {
+    const { nodes = [], edges = [] } = projectData || {};
+    set({ 
+      nodes, 
+      edges,
+      selectedNodeId: null,
+      selectedNodeIds: new Set<string>(),
+      isSelectionMode: false,
+    });
+  },
+
+  getProjectData: () => {
+    const { nodes, edges } = get();
+    return { nodes, edges };
   },
 
   reset: () => {

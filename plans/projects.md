@@ -45,11 +45,28 @@ Este documento descreve a feature de **Projetos** agrupados em **Workspaces**, s
 
 ```ts
 // src/types/project.ts
-export interface Workspace {
-  id: string;        // uuid
+
+// Team vem da API TEAMS_LIST do Deco
+export interface Team {
+  id: number;
   name: string;
+  slug: string;
+  theme?: {
+    picture?: string;
+    variables?: Record<string, string>;
+  };
+  created_at: string;
+  avatar_url?: string;
+}
+
+// Workspace agora pode estar vinculado a um Team
+export interface Workspace {
+  id: string;        // uuid local
+  name: string;
+  teamId?: number;   // ID do team do Deco (opcional, null = local)
   createdAt: string; // ISO
   updatedAt: string;
+  isLocal: boolean;  // true = localStorage, false = vinculado ao Deco
 }
 
 export interface Project {
@@ -63,6 +80,13 @@ export interface Project {
 ```
 `ProjectData` pode reaproveitar a estrutura já usada hoje pelo app para o schema/canvas.
 
+### 4.1. Integração com Teams do Deco
+
+Quando o usuário fizer login, o sistema irá:
+1. Chamar `TEAMS_LIST` para obter os times do usuário
+2. Criar automaticamente um Workspace para cada Team retornado
+3. Permitir que o usuário também crie Workspaces locais (sem teamId)
+
 ---
 
 ## 5. Camada de Persistência
@@ -72,11 +96,16 @@ export interface Project {
 ```ts
 // src/repositories/IProjectRepository.ts
 export interface IProjectRepository {
+  /* Teams (from Deco API) */
+  listTeams(): Promise<Team[]>;
+  syncTeamsToWorkspaces(teams: Team[]): Promise<void>;
+
   /* Workspaces */
   listWorkspaces(): Promise<Workspace[]>;
-  createWorkspace(name: string): Promise<Workspace>;
+  createWorkspace(name: string, teamId?: number): Promise<Workspace>;
   renameWorkspace(id: string, name: string): Promise<void>;
   deleteWorkspace(id: string): Promise<void>;
+  getWorkspaceByTeamId(teamId: number): Promise<Workspace | null>;
 
   /* Projects */
   listProjects(workspaceId: string): Promise<Project[]>;
