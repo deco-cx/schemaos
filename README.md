@@ -1,89 +1,103 @@
-# React + Tailwind MCP Server Template
+# 🎨 **SchemaOS** - AI-Powered Visual Database Designer
 
-A full-stack template for building
-[Model Context Protocol (MCP)](https://spec.modelcontextprotocol.io/) servers
-with a modern React frontend. This template provides a complete development
-environment where your MCP server not only exposes tools and workflows to AI
-agents but also serves a beautiful web interface built with React and Tailwind
-CSS.
+**Transform your data architecture with AI-assisted visual schema design.** Create beautiful database schemas through an intuitive drag-and-drop interface powered by intelligent suggestions.
 
-## ✨ Features
+![SchemaOS](https://img.shields.io/badge/SchemaOS-AI%20Powered-gradient?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Closed%20Beta-yellow?style=for-the-badge)
+![Built with](https://img.shields.io/badge/Built%20with-React%20%2B%20Deco-blue?style=for-the-badge)
 
-- **🤖 MCP Server**: Cloudflare Workers-based server with typed tools and
-  workflows
-- **⚛️ React Frontend**: Modern React app with Vite, TanStack Router, and
-  Tailwind CSS
-- **🎨 UI Components**: Pre-configured shadcn/ui components for rapid
-  development
-- **🔧 Type Safety**: Full TypeScript support with auto-generated RPC client
-  types
-- **🚀 Hot Reload**: Live development with automatic rebuilding for both
-  frontend and backend
-- **☁️ Ready to Deploy**: One-command deployment to Cloudflare Workers
+## ✨ **What Makes SchemaOS Special**
 
-## 🚀 Quick Start
+### 🤖 **AI-Powered Intelligence**
+- **Smart Field Suggestions** - AI analyzes your table names and suggests relevant fields
+- **Relationship Detection** - Automatic relationship type inference (1-1, 1-N, N-N)
+- **SQL Generation** - Convert visual schemas to production-ready SQL
+- **Import from DB** - Introspect existing databases and visualize their structure
 
-### Prerequisites
+### 🎯 **Visual Schema Design**
+- **Drag & Drop Canvas** - Create tables effortlessly with ReactFlow
+- **Beautiful Nodes** - Custom-designed components with type indicators
+- **Smart Connections** - Draw relationships with automatic type detection
+- **Real-time Preview** - See your data structure come to life instantly
 
-- Node.js ≥18.0.0
-- Deno ≥2.0.0
-- [Deco CLI](https://deco.chat): `deno install -Ar -g -n deco jsr:@deco/cli`
+### 🔌 **Data Source Integration**
+- **10+ Integrations** - Shopify, Stripe, Airtable, PostgreSQL, Discord, and more
+- **Live Introspection** - Connect to real databases and import schemas
+- **Mock & Real Data** - Test with mock data or connect to production
 
-### Setup
+## 🚀 **Get Started**
+
+### **Option 1: Run with Deco** *(Recommended)*
+
+[![Run with Deco](https://img.shields.io/badge/Run%20with%20Deco-Deploy%20Now-gradient?style=for-the-badge)](https://deco.chat)
+
+> ⚠️ **Currently in closed beta** - Request access at [deco.chat](https://deco.chat)
+
+### **Option 2: Clone & Run Locally** *(Temporary)*
+
+**Prerequisites:** 
+- **Deco CLI** installed ([instructions](http://github.com/deco-cx/chat))
 
 ```bash
-# Install dependencies
-npm install
+# 1. Clone the repository
+git clone https://github.com/deco-cx/schemaos.git
+cd schemaos
 
-# Configure your app
-npm run configure
+# 2. Configure the server
+cd server && deco configure
+# → Choose your workspace
+# → Press Enter for other options
 
-# Start development server
-npm run dev
+# 3. Start development
+cd ../ && npm run dev
 ```
 
-The server will start on `http://localhost:8787` serving both your MCP endpoints
-and the React frontend.
+Your SchemaOS instance will be running at **`http://localhost:8787`** 🎉
 
-## 📁 Project Structure
+## 🎮 **How to Use**
 
-```
-├── server/           # MCP Server (Cloudflare Workers + Deco runtime)
-│   ├── main.ts      # Server entry point with tools & workflows
-│   └── deco.gen.ts  # Auto-generated integration types
-└── view/            # React Frontend (Vite + Tailwind CSS)
-    ├── src/
-    │   ├── lib/rpc.ts    # Typed RPC client for server communication
-    │   ├── routes/       # TanStack Router routes
-    │   └── components/   # UI components with Tailwind CSS
-    └── package.json
-```
+1. **📦 Create Tables** - Drag from palette or import from data sources
+2. **🏗️ Add Fields** - Manual entry or AI-powered suggestions
+3. **🔗 Define Relationships** - Connect tables with smart relationship detection
+4. **💾 Export & Share** - Download as JSON or generate SQL
 
-## 🛠️ Development Workflow
+## 🏆 **Key Features**
 
-- **`npm run dev`** - Start development with hot reload
-- **`npm run gen`** - Generate types for external integrations
-- **`npm run gen:self`** - Generate types for your own tools/workflows
-- **`npm run deploy`** - Deploy to production
+| Feature | Description |
+|---------|-------------|
+| **🎨 Visual Editor** | Intuitive drag-and-drop interface |
+| **🤖 AI Assistant** | Context-aware field and relationship suggestions |
+| **🔌 10+ Integrations** | Connect to popular databases and APIs |
+| **📊 Data Explorer** | Browse and filter your schema visually |
+| **💾 Auto-Save** | Never lose your work |
+| **📤 Import/Export** | JSON, SQL, and more formats |
+| **🌙 Dark Mode** | Easy on the eyes |
+| **⚡ Real-time** | Instant updates and previews |
 
-## 🔗 Frontend ↔ Server Communication
+## 🛠️ **Tech Stack**
 
-The template includes a fully-typed RPC client that connects your React frontend
-to your MCP server:
+- **Frontend:** React 18 + Vite + Tailwind CSS
+- **Canvas:** ReactFlow for visual editing
+- **Backend:** Deco Workers + SQLite
+- **AI:** GPT-4 powered suggestions
+- **State:** Zustand for performance
+- **UI:** shadcn/ui components
 
-```typescript
-// Typed calls to your server tools and workflows
-const result = await client.tools.MY_TOOL({ input: "data" });
-const workflowResult = await client.workflows.MY_WORKFLOW({ input: "data" });
-```
+## 🤝 **Contributing**
 
-## 📖 Learn More
+SchemaOS is currently in **closed beta**. We're working hard to make it available to everyone soon!
 
-This template is built for deploying primarily on top of the
-[Deco platform](https://deco.chat/about) which can be found at the
-[deco-cx/chat](https://github.com/deco-cx/chat) repository.
+**Want early access?** [Join the waitlist](https://deco.chat)
+
+## 📬 **Contact**
+
+- **Website:** [deco.chat](https://deco.chat)
+- **GitHub:** [deco-cx/schemaos](https://github.com/deco-cx/schemaos)
+- **Discord:** [Join our community](https://discord.gg/deco)
 
 ---
 
-**Ready to build your next MCP server with a beautiful frontend?
-[Get started now!](https://deco.chat)**
+<p align="center">
+  <strong>Built with ❤️ by the Deco team</strong><br>
+  <em>Making database design beautiful and intelligent</em>
+</p>
