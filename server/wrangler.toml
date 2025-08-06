@@ -1,0 +1,29 @@
+#:schema node_modules/@deco/workers-runtime/config-schema.json
+name = "schemaos"
+main = "main.ts"
+compatibility_date = "2025-06-17"
+compatibility_flags = [ "nodejs_compat" ]
+scope = "testing-workers"
+
+[assets]
+directory = "./view-build"
+binding = "ASSETS"
+
+[deco]
+workspace = "testing-workers"
+enable_workflows = true
+local = false
+
+[[deco.bindings]]
+name = "USER_MANAGEMENT"
+type = "mcp"
+integration_id = "i:user-management"
+
+[[migrations]]
+tag = "v1"
+new_classes = [ "Workflow" ]
+
+[durable_objects]
+[[durable_objects.bindings]]
+name = "DECO_CHAT_WORKFLOW_DO"
+class_name = "Workflow"
