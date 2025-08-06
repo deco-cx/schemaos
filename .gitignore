@@ -8,6 +8,10 @@ storage/
 
 # Build files
 view-build/
+server/dist/
+
+# Wrangler temporary files
+server/.wrangler/
 
 # Node modules
 node_modules
