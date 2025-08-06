@@ -80,11 +80,13 @@ export function WorkspaceSwitcher() {
 
   return (
     <>
-      <DropdownMenu onOpenChange={(open) => {
-        if (!open) {
-          setSearchQuery(''); // Clear search when dropdown closes
-        }
-      }}>
+      <DropdownMenu 
+        modal={false}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSearchQuery(''); // Clear search when dropdown closes
+          }
+        }}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -103,16 +105,39 @@ export function WorkspaceSwitcher() {
             <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-[280px] max-h-[400px] overflow-hidden">
+        <DropdownMenuContent 
+          align="start" 
+          className="w-[280px] max-h-[400px] overflow-hidden" 
+          style={{ zIndex: 100 }}
+          onCloseAutoFocus={(e) => e.preventDefault()}>
           {/* Search Input */}
-          <div className="p-2 border-b">
+          <div 
+            className="p-2 border-b"
+            onKeyDown={(e) => {
+              // Prevent all keyboard navigation in the search area
+              e.stopPropagation();
+            }}
+          >
             <div className="relative">
               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search workspaces..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  // Stop all key events from bubbling to dropdown menu
+                  e.stopPropagation();
+                  
+                  // Allow Enter key to work for workspace selection if there's a single result
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    const allFiltered = [...teamWorkspaces, ...localWorkspaces];
+                    if (allFiltered.length === 1) {
+                      handleSwitchWorkspace(allFiltered[0].id);
+                    }
+                  }
+                }}
                 className="pl-8 h-8 text-sm"
+                autoFocus
               />
             </div>
           </div>
