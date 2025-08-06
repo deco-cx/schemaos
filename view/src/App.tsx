@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { RotateCcw, Download, Upload, Sparkles, CheckCircle, Clock, ChevronLeft, ChevronRight, PanelLeftClose, PanelRightClose } from 'lucide-react';
+import { RotateCcw, Download, Upload, Sparkles, CheckCircle, Clock, ChevronLeft, ChevronRight, PanelLeftClose, PanelRightClose, Database } from 'lucide-react';
 import Canvas from './canvas/Canvas';
 import Palette from './sidebar/Palette';
 import PropertyPanel from './sidebar/PropertyPanel';
@@ -13,7 +13,7 @@ import { useSchemaIntegration } from './hooks/useSchemaIntegration';
 import { Button } from './components/ui/button';
 
 function App() {
-  const { loadFromLocalStorage, saveToLocalStorage, reset, nodes, edges, openNodeAIModal } = useSchemaStore();
+  const { loadFromLocalStorage, saveToLocalStorage, reset, nodes, edges, openNodeAIModal, selectedNodeIds } = useSchemaStore();
   const { 
     actions: workspaceActions, 
     isLoading: workspaceLoading, 
@@ -155,12 +155,22 @@ function App() {
         
         <div className="flex items-center gap-2">
           <Button
-            onClick={() => openNodeAIModal('create')}
+            onClick={() => selectedNodeIds.size > 0 ? openNodeAIModal('edit') : openNodeAIModal('create')}
             size="sm"
             className="h-8 bg-purple-600 hover:bg-purple-700 text-white"
           >
             <Sparkles className="w-3 h-3 mr-1" />
-            AI Schema
+            {selectedNodeIds.size > 0 ? 'Edit with AI' : 'AI Schema'}
+          </Button>
+          
+          <Button
+            onClick={() => openNodeAIModal('import')}
+            size="sm"
+            variant="outline"
+            className="h-8"
+          >
+            <Database className="w-3 h-3 mr-1" />
+            Import DB
           </Button>
 
           <Button

@@ -6,7 +6,11 @@ import {
   createWorkflow,
 } from "@deco/workers-runtime/mastra";
 import { z } from "zod";
-import type { Env as DecoEnv } from "./deco.gen.ts";
+import type { 
+  Env as DecoEnv,
+  DATABASES_RUN_SQLInput,
+  DATABASES_RUN_SQLOutput
+} from "./deco.gen.ts";
 
 interface Env extends DecoEnv {
   ASSETS: {
@@ -91,7 +95,6 @@ const createTeamsListTool = (env: Env) =>
       // Proxy to the actual deco platform TEAMS_LIST tool
       const response = await env.USER_MANAGEMENT.TEAMS_LIST({});
 
-      console.log({ response });
       // Parse the response if it's a string (as shown in the example)
       if (typeof response === "string") {
         try {
@@ -103,6 +106,38 @@ const createTeamsListTool = (env: Env) =>
       }
 
       return response || [];
+    },
+  });
+
+const createRunSqlTool = (env: Env) =>
+  createTool({
+    id: "RUN_SQL",
+    description: "Execute SQL against the workspace SQLite database",
+    inputSchema: z.object({
+      sql: z.string(),
+      params: z.array(z.any()).optional(),
+    }),
+    outputSchema: z.object({
+      result: z.array(z.object({
+        meta: z.object({
+          changed_db: z.boolean().optional(),
+          changes: z.number().optional(),
+          duration: z.number().optional(),
+          last_row_id: z.number().optional(),
+          rows_read: z.number().optional(),
+          rows_written: z.number().optional(),
+          served_by_primary: z.boolean().optional(),
+          served_by_region: z.string().optional(),
+        }).optional(),
+        results: z.array(z.any()).optional(),
+        success: z.boolean().optional(),
+      })),
+    }),
+    execute: async ({ context }) => {
+      return await env.DECO_CHAT_WORKSPACE_API.DATABASES_RUN_SQL({
+        sql: context.sql,
+        params: context.params,
+      });
     },
   });
 
@@ -276,6 +311,7 @@ const { Workflow, ...runtime } = withRuntime<Env>({
     createMyTool,
     createAIGenerateObjectTool,
     createTeamsListTool,
+    createRunSqlTool,
     createNodeAIAssistantTool,
   ],
   fetch: fallbackToView("/"),

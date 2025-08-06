@@ -27,6 +27,9 @@ export default function NodeAIModal() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string>('');
   const [userPrompt, setUserPrompt] = useState<string>('');
+  const [isExecutingSQL, setIsExecutingSQL] = useState(false);
+  const [sqlExecutionResult, setSqlExecutionResult] = useState<any>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const selectedNodes = nodes.filter(node => selectedNodeIds.has(node.id));
 
@@ -37,6 +40,9 @@ export default function NodeAIModal() {
       setError('');
       setUserPrompt('');
       setIsLoading(false);
+      setIsExecutingSQL(false);
+      setSqlExecutionResult(null);
+      setIsImporting(false);
     }
   }, [isNodeAIModalOpen, nodeAIMode]);
 
@@ -98,7 +104,145 @@ export default function NodeAIModal() {
     }
   };
 
-  const buildContextPrompt = (nodes: any[], mode: 'create' | 'edit' | 'sql', userRequest: string) => {
+  const handleExecuteSQL = async () => {
+    if (!result?.sql) return;
+
+    setIsExecutingSQL(true);
+    setSqlExecutionResult(null);
+
+    try {
+      const response = await client.RUN_SQL({
+        sql: result.sql
+      });
+
+      setSqlExecutionResult(response);
+      
+      // Show success notification (you could add a toast library here)
+      console.log('SQL executed successfully:', response);
+    } catch (err) {
+      console.error('SQL execution error:', err);
+      setSqlExecutionResult({
+        error: err instanceof Error ? err.message : 'Failed to execute SQL'
+      });
+    } finally {
+      setIsExecutingSQL(false);
+    }
+  };
+
+  const handleImportFromDB = async () => {
+    setIsImporting(true);
+    setError('');
+    
+    try {
+      // Run introspection query
+      const response = await client.RUN_SQL({
+        sql: `SELECT 
+                m.name AS table_name,
+                p.name AS column_name,
+                p.type AS data_type,
+                p.pk AS is_primary_key,
+                p."notnull" AS is_not_null
+              FROM 
+                sqlite_master m
+              JOIN 
+                pragma_table_info(m.name) p
+              WHERE 
+                m.type = 'table'
+                AND m.name NOT LIKE 'sqlite_%'
+              ORDER BY 
+                m.name,
+                p.cid;`
+      });
+
+      if (!response.result?.[0]?.success || !response.result[0].results) {
+        throw new Error('Failed to fetch database schema');
+      }
+
+      const rows = response.result[0].results as Array<{
+        table_name: string;
+        column_name: string;
+        data_type: string;
+        is_primary_key: number;
+        is_not_null: number;
+      }>;
+
+      // Group by table
+      const tableMap = new Map<string, Array<typeof rows[0]>>();
+      rows.forEach(row => {
+        if (!tableMap.has(row.table_name)) {
+          tableMap.set(row.table_name, []);
+        }
+        tableMap.get(row.table_name)!.push(row);
+      });
+
+      if (tableMap.size === 0) {
+        setError('No tables found in workspace database');
+        return;
+      }
+
+      // Convert to nodes and add them to canvas
+      const newNodes: any[] = [];
+      let positionIndex = 0;
+
+      for (const [tableName, columns] of tableMap.entries()) {
+        const fields = columns.map(col => ({
+          id: `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          name: col.column_name,
+          type: mapSQLiteToSchemaType(col.data_type),
+          required: col.is_not_null === 1,
+          isPrimary: col.is_primary_key === 1,
+        }));
+
+        const newNode = {
+          id: `node_${Date.now()}_${positionIndex}`,
+          type: 'custom',
+          position: { 
+            x: 200 + (positionIndex % 3) * 300, 
+            y: 100 + Math.floor(positionIndex / 3) * 200 
+          },
+          data: {
+            id: `node_${Date.now()}_${positionIndex}`,
+            name: tableName,
+            fields,
+            showAllFields: false,
+          },
+        };
+
+        newNodes.push(newNode);
+        positionIndex++;
+      }
+
+      // Add nodes to canvas
+      newNodes.forEach(node => addNode(node));
+      
+      // Show success result
+      setResult({
+        message: `Successfully imported ${newNodes.length} tables from workspace database`,
+        tables: newNodes.map(n => n.data.name),
+        totalFields: newNodes.reduce((sum, n) => sum + n.data.fields.length, 0)
+      });
+
+    } catch (error) {
+      console.error('Import from DB failed:', error);
+      setError(error instanceof Error ? error.message : 'Failed to import from database');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Map SQLite types to schema types
+  const mapSQLiteToSchemaType = (sqliteType: string): string => {
+    const type = sqliteType.toUpperCase();
+    if (type.includes('INT')) return 'number';
+    if (type.includes('TEXT') || type.includes('VARCHAR') || type.includes('CHAR')) return 'string';
+    if (type.includes('REAL') || type.includes('FLOAT') || type.includes('DOUBLE')) return 'number';
+    if (type.includes('BLOB')) return 'string';
+    if (type.includes('BOOLEAN') || type.includes('BOOL')) return 'boolean';
+    if (type.includes('DATE') || type.includes('TIME')) return 'datetime';
+    return 'string'; // fallback
+  };
+
+  const buildContextPrompt = (nodes: any[], mode: 'create' | 'edit' | 'sql' | 'import', userRequest: string) => {
     const validTypes = getValidFieldTypes().join(', ');
     const relationStorageOptions = getRelationStorageOptions().join(', ');
     
@@ -260,7 +404,7 @@ export default function NodeAIModal() {
     }
   };
 
-  const getSchemaForMode = (mode: 'create' | 'edit' | 'sql') => {
+  const getSchemaForMode = (mode: 'create' | 'edit' | 'sql' | 'import') => {
     const validTypes = getValidFieldTypes();
     const relationStorageOptions = getRelationStorageOptions();
     
@@ -660,6 +804,7 @@ export default function NodeAIModal() {
     if (nodeAIMode === 'create') return 'Create Schema with AI';
     if (nodeAIMode === 'edit') return 'Edit with AI';
     if (nodeAIMode === 'sql') return 'Generate SQL';
+    if (nodeAIMode === 'import') return 'Import from Database';
     return 'AI Assistant';
   };
 
@@ -667,6 +812,7 @@ export default function NodeAIModal() {
     if (nodeAIMode === 'create') return <Bot className="w-5 h-5" />;
     if (nodeAIMode === 'edit') return <Bot className="w-5 h-5" />;
     if (nodeAIMode === 'sql') return <FileText className="w-5 h-5" />;
+    if (nodeAIMode === 'import') return <Database className="w-5 h-5" />;
     return <Bot className="w-5 h-5" />;
   };
 
@@ -727,8 +873,28 @@ export default function NodeAIModal() {
             </div>
           )}
 
+          {/* Import Mode UI */}
+          {nodeAIMode === 'import' && !result && !isLoading && !isImporting && (
+            <div className="p-6 text-center">
+              <div className="mb-4">
+                <Database className="w-12 h-12 mx-auto text-blue-600 mb-3" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Import from Workspace Database</h3>
+                <p className="text-sm text-gray-600">
+                  This will scan your workspace's SQLite database and import all existing tables as schema nodes.
+                </p>
+              </div>
+              <Button
+                onClick={handleImportFromDB}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Database className="w-4 h-4 mr-2" />
+                Import Database Schema
+              </Button>
+            </div>
+          )}
+
           {/* User Prompt Input */}
-          {!result && !isLoading && (
+          {nodeAIMode !== 'import' && !result && !isLoading && (
             <div className="p-4 border-b border-gray-200">
               <label htmlFor="user-prompt" className="block text-sm font-medium text-gray-700 mb-2">
                 What do you want to {nodeAIMode === 'create' ? 'create' : nodeAIMode === 'edit' ? 'change' : 'generate'}?
@@ -746,25 +912,39 @@ export default function NodeAIModal() {
                 }
                 className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               />
-              <div className="mt-3 flex justify-end gap-2">
-                {nodeAIMode === 'sql' && selectedNodes.length > 0 && (
+              <div className="mt-3 flex justify-between gap-2">
+                {/* Import button for create mode */}
+                {nodeAIMode === 'create' && (
                   <Button
-                    onClick={handleGenerateDeterministicSQL}
+                    onClick={() => {/* We'll handle this by changing the mode */}}
                     variant="outline"
                     className="flex items-center gap-2"
                   >
                     <Database className="w-4 h-4" />
-                    Generate SQL
+                    Import from DB
                   </Button>
                 )}
-                <Button
-                  onClick={handleGenerateAI}
-                  disabled={!userPrompt.trim()}
-                  className="flex items-center gap-2"
-                >
-                  <Send className="w-4 h-4" />
-                  Generate with AI
-                </Button>
+                
+                <div className="flex gap-2 ml-auto">
+                  {nodeAIMode === 'sql' && selectedNodes.length > 0 && (
+                    <Button
+                      onClick={handleGenerateDeterministicSQL}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Database className="w-4 h-4" />
+                      Generate SQL
+                    </Button>
+                  )}
+                  <Button
+                    onClick={handleGenerateAI}
+                    disabled={!userPrompt.trim()}
+                    className="flex items-center gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    Generate with AI
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -776,6 +956,13 @@ export default function NodeAIModal() {
                 <div className="flex items-center gap-3">
                   <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
                   <span className="text-gray-600">Generating AI response...</span>
+                </div>
+              </div>
+            ) : isImporting ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                  <span className="text-gray-600">Importing database schema...</span>
                 </div>
               </div>
             ) : error ? (
@@ -826,8 +1013,108 @@ export default function NodeAIModal() {
                     </Button>
                   </div>
                 </div>
+
+                {/* SQL Execution Button for SQL mode */}
+                {nodeAIMode === 'sql' && result.sql && (
+                  <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Database className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm text-blue-800">Execute this SQL on your workspace database</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={handleExecuteSQL}
+                      disabled={isExecutingSQL}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {isExecutingSQL ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Running...
+                        </>
+                      ) : (
+                        <>
+                          <Database className="w-4 h-4 mr-2" />
+                          Run on Workspace DB
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+
+                {/* SQL Execution Result */}
+                {sqlExecutionResult && (
+                  <div className={`p-4 rounded-lg border ${
+                    sqlExecutionResult.error 
+                      ? 'bg-red-50 border-red-200' 
+                      : 'bg-green-50 border-green-200'
+                  }`}>
+                    <h5 className={`font-medium mb-2 ${
+                      sqlExecutionResult.error ? 'text-red-900' : 'text-green-900'
+                    }`}>
+                      {sqlExecutionResult.error ? 'Execution Failed' : 'Execution Successful'}
+                    </h5>
+                    {sqlExecutionResult.error ? (
+                      <p className="text-red-700 text-sm">{sqlExecutionResult.error}</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {sqlExecutionResult.result?.map((queryResult: any, index: number) => (
+                          <div key={index} className="text-sm">
+                            {queryResult.success ? (
+                              <div className="text-green-700">
+                                <p>✓ Query {index + 1} executed successfully</p>
+                                {queryResult.meta && (
+                                  <div className="mt-1 text-xs text-green-600">
+                                    {queryResult.meta.changes > 0 && (
+                                      <span>• {queryResult.meta.changes} rows affected</span>
+                                    )}
+                                    {queryResult.meta.duration && (
+                                      <span className="ml-2">• {queryResult.meta.duration}ms</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-red-700">✗ Query {index + 1} failed</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 
-                {(nodeAIMode === 'create' || nodeAIMode === 'edit') ? (
+                {nodeAIMode === 'import' ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Check className="w-5 h-5 text-green-600" />
+                      <h5 className="font-medium text-green-900">Import Successful</h5>
+                    </div>
+                    <p className="text-green-800 text-sm mb-3">{result.message}</p>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium text-green-900">Tables imported:</span>
+                        <span className="ml-2 text-green-700">{result.tables?.length || 0}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-green-900">Total fields:</span>
+                        <span className="ml-2 text-green-700">{result.totalFields || 0}</span>
+                      </div>
+                    </div>
+                    {result.tables && result.tables.length > 0 && (
+                      <div className="mt-3">
+                        <p className="font-medium text-green-900 text-sm mb-1">Imported tables:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {result.tables.map((tableName: string, index: number) => (
+                            <span key={index} className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
+                              {tableName}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (nodeAIMode === 'create' || nodeAIMode === 'edit') ? (
                   <div className="space-y-4">
                     {result.explanation && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -872,6 +1159,7 @@ export default function NodeAIModal() {
                     <pre className="whitespace-pre-wrap text-sm text-gray-800 font-mono">
                       {result.sql || JSON.stringify(result, null, 2)}
                     </pre>
+  
                   </div>
                 )}
               </div>

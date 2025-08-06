@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, ArrowRight, ArrowLeft, Check, AlertCircle, Loader2, Lightbulb } from 'lucide-react';
+import { Sparkles, ArrowRight, ArrowLeft, Check, AlertCircle, Loader2, Lightbulb, Database } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
@@ -12,8 +12,10 @@ import {
 } from '../components/ui/sheet';
 import { useSchemaAI, getExamplePrompts } from './useSchemaAI';
 import { useSchemaStore } from '../store';
-import { SchemaSpec, NodeSpec, EdgeSpec } from './types';
-import type { ObjectNode, RelationEdge, Field } from '../store';
+import { client } from '../lib/rpc';
+import type { SchemaSpec, NodeSpec } from './types';
+import type { ObjectNode, RelationEdge } from '../store';
+import type { Field } from '../lib/schema-types';
 
 // Convert AI schema spec to store format
 function convertSchemaToStoreFormat(schema: SchemaSpec): { nodes: ObjectNode[], edges: RelationEdge[] } {
@@ -50,8 +52,9 @@ function convertSchemaToStoreFormat(schema: SchemaSpec): { nodes: ObjectNode[], 
 }
 
 function PromptStep() {
-  const { prompt, setPrompt, processPrompt, isProcessing, parseResult } = useSchemaAI();
+  const { prompt, setPrompt, processPrompt, isProcessing, parseResult, setGeneratedSchema, setStep } = useSchemaAI();
   const [selectedExample, setSelectedExample] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const examples = getExamplePrompts();
 
   const handleExampleClick = (example: string) => {
@@ -64,6 +67,90 @@ function PromptStep() {
     if (prompt.trim() && !isProcessing) {
       processPrompt();
     }
+  };
+
+  const handleImportFromDB = async () => {
+    setIsImporting(true);
+    
+    try {
+      // Run introspection query
+      const response = await client.RUN_SQL({
+        sql: `SELECT 
+                m.name AS table_name,
+                p.name AS column_name,
+                p.type AS data_type,
+                p.pk AS is_primary_key,
+                p."notnull" AS is_not_null
+              FROM 
+                sqlite_master m
+              JOIN 
+                pragma_table_info(m.name) p
+              WHERE 
+                m.type = 'table'
+                AND m.name NOT LIKE 'sqlite_%'
+              ORDER BY 
+                m.name,
+                p.cid;`
+      });
+
+      if (!response.result?.[0]?.success || !response.result[0].results) {
+        throw new Error('Failed to fetch database schema');
+      }
+
+      const rows = response.result[0].results as Array<{
+        table_name: string;
+        column_name: string;
+        data_type: string;
+        is_primary_key: number;
+        is_not_null: number;
+      }>;
+
+      // Group by table
+      const tableMap = new Map<string, Array<typeof rows[0]>>();
+      rows.forEach(row => {
+        if (!tableMap.has(row.table_name)) {
+          tableMap.set(row.table_name, []);
+        }
+        tableMap.get(row.table_name)!.push(row);
+      });
+
+      // Convert to schema format
+      const nodes: NodeSpec[] = Array.from(tableMap.entries()).map(([tableName, columns]) => ({
+        id: `table_${tableName}`,
+        name: tableName,
+        fields: columns.map(col => ({
+          name: col.column_name,
+          type: mapSQLiteToSchemaType(col.data_type),
+          isPrimary: col.is_primary_key === 1,
+          isNullable: col.is_not_null === 0
+        }))
+      }));
+
+      const schema: SchemaSpec = {
+        nodes,
+        edges: [] // No relationship inference for now
+      };
+
+      setGeneratedSchema(schema);
+      setStep('summary');
+    } catch (error) {
+      console.error('Import from DB failed:', error);
+      // Could show error toast here
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Map SQLite types to schema types
+  const mapSQLiteToSchemaType = (sqliteType: string): "string" | "number" | "boolean" | "datetime" | "text" | "email" | "enum" => {
+    const type = sqliteType.toUpperCase();
+    if (type.includes('INT')) return 'number';
+    if (type.includes('TEXT') || type.includes('VARCHAR') || type.includes('CHAR')) return 'string';
+    if (type.includes('REAL') || type.includes('FLOAT') || type.includes('DOUBLE')) return 'number';
+    if (type.includes('BLOB')) return 'string';
+    if (type.includes('BOOLEAN') || type.includes('BOOL')) return 'boolean';
+    if (type.includes('DATE') || type.includes('TIME')) return 'datetime';
+    return 'string'; // fallback
   };
 
   return (
@@ -111,23 +198,54 @@ function PromptStep() {
           </div>
         )}
 
-        <Button 
-          type="submit" 
-          className="w-full" 
-          disabled={!prompt.trim() || isProcessing}
-        >
-          {isProcessing ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Analyzing...
-            </>
-          ) : (
-            <>
-              Generate Schema
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </>
-          )}
-        </Button>
+        <div className="space-y-3">
+          <Button 
+            type="submit" 
+            className="w-full" 
+            disabled={!prompt.trim() || isProcessing || isImporting}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                Generate Schema
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </>
+            )}
+          </Button>
+          
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-gray-200 dark:border-gray-700" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white dark:bg-gray-900 px-2 text-gray-500 dark:text-gray-400">or</span>
+            </div>
+          </div>
+          
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleImportFromDB}
+            disabled={isProcessing || isImporting}
+          >
+            {isImporting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Importing...
+              </>
+            ) : (
+              <>
+                <Database className="w-4 h-4 mr-2" />
+                Import from Workspace DB
+              </>
+            )}
+          </Button>
+        </div>
       </form>
 
       <div className="space-y-3">

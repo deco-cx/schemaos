@@ -25,6 +25,8 @@ interface SchemaAIStore {
   goBackToPrompt: () => void;
   applySchema: () => void;
   reset: () => void;
+  setGeneratedSchema: (schema: SchemaSpec) => void;
+  setStep: (step: 'prompt' | 'summary' | 'applying') => void;
 }
 
 export const useSchemaAI = create<SchemaAIStore>((set, get) => ({
@@ -127,6 +129,14 @@ export const useSchemaAI = create<SchemaAIStore>((set, get) => ({
       validationErrors: [],
       isProcessing: false
     });
+  },
+
+  setGeneratedSchema: (schema: SchemaSpec) => {
+    set({ generatedSchema: schema, validationErrors: [] });
+  },
+
+  setStep: (step: 'prompt' | 'summary' | 'applying') => {
+    set({ currentStep: step });
   }
 }));
 

@@ -41,7 +41,7 @@ interface SchemaStore {
   selectedNodeIds: Set<string>
   isSelectionMode: boolean
   isNodeAIModalOpen: boolean
-  nodeAIMode: 'create' | 'edit' | 'sql' | null
+  nodeAIMode: 'create' | 'edit' | 'sql' | 'import' | null
 
   // Node operations
   addNode: (node: ObjectNode) => void
