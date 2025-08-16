@@ -14,6 +14,12 @@ workspace = "testing-workers"
 enable_workflows = true
 local = false
 
+[deco.integration]
+description = "Manage your schemas and data models with AI"
+friendlyName = "SchemaOS"
+icon = "https://i.imgur.com/AKFN8Rx.png"
+
+
 [[deco.bindings]]
 name = "USER_MANAGEMENT"
 type = "mcp"

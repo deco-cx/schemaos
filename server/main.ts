@@ -18,20 +18,88 @@ interface Env extends DecoEnv {
   };
 }
 
-const createMyTool = (_env: Env) =>
+// Auth wrapper to protect private tools
+export const requireAuth = <I, O>(tool: ReturnType<typeof createTool>) =>
   createTool({
-    id: "MY_TOOL",
-    description: "Say hello",
-    inputSchema: z.object({ name: z.string() }),
-    outputSchema: z.object({ message: z.string() }),
-    execute: async ({ context }) => ({
-      message: `Hello, ${context.name}!`,
-    }),
+    ...tool,
+    execute: async ({ context }) => {
+      if (!context.requestContext?.user) {
+        throw new Error("401 unauthorized - Please login to access this feature");
+      }
+      return tool.execute({ context });
+    },
   });
 
-const createAIGenerateObjectTool = (env: Env) =>
+// Public authentication tool - doesn't require auth
+const createGetCurrentUserTool = (_env: Env) =>
   createTool({
-    id: "AI_GENERATE_OBJECT",
+    id: "GET_CURRENT_USER",
+    description: "Get current authenticated user and workspace information",
+    inputSchema: z.object({}),
+    outputSchema: z.object({
+      user: z.object({
+        id: z.string(),
+        email: z.string(),
+        name: z.string().optional(),
+        avatarUrl: z.string().optional(),
+      }).optional(),
+      workspace: z.object({
+        id: z.string(),
+        slug: z.string(),
+        name: z.string(),
+      }).optional(),
+    }),
+    execute: async ({ context }) => {
+      return {
+        user: context.requestContext?.user,
+        workspace: context.requestContext?.workspace,
+      };
+    },
+  });
+
+// Get user's workspaces - requires auth
+const createGetMyWorkspacesTool = (env: Env) =>
+  requireAuth(
+    createTool({
+      id: "GET_MY_WORKSPACES",
+      description: "Get all workspaces the current user belongs to",
+      inputSchema: z.object({}),
+      outputSchema: z.array(z.object({
+        id: z.string(),
+        slug: z.string(),
+        name: z.string(),
+        role: z.string().optional(),
+      })),
+      execute: async ({ context }) => {
+        try {
+          // Use the Deco platform API to get user's workspaces
+          const workspaces = await env.DECO_CHAT_WORKSPACE_API.GET_MY_WORKSPACES({});
+          return workspaces || [];
+        } catch (error) {
+          console.error("Failed to fetch workspaces:", error);
+          return [];
+        }
+      },
+    })
+  );
+
+const createMyTool = (_env: Env) =>
+  requireAuth(
+    createTool({
+      id: "MY_TOOL",
+      description: "Say hello",
+      inputSchema: z.object({ name: z.string() }),
+      outputSchema: z.object({ message: z.string() }),
+      execute: async ({ context }) => ({
+        message: `Hello, ${context.name}!`,
+      }),
+    })
+  );
+
+const createAIGenerateObjectTool = (env: Env) =>
+  requireAuth(
+    createTool({
+      id: "AI_GENERATE_OBJECT",
     description:
       "Generate structured objects using AI models with JSON schema validation",
     inputSchema: z.object({
@@ -73,11 +141,13 @@ const createAIGenerateObjectTool = (env: Env) =>
         tools: context.tools,
       });
     },
-  });
+    })
+  );
 
 const createTeamsListTool = (env: Env) =>
-  createTool({
-    id: "TEAMS_LIST",
+  requireAuth(
+    createTool({
+      id: "TEAMS_LIST",
     description: "List teams for the current user",
     inputSchema: z.object({}),
     outputSchema: z.array(z.object({
@@ -107,11 +177,13 @@ const createTeamsListTool = (env: Env) =>
 
       return response || [];
     },
-  });
+    })
+  );
 
 const createRunSqlTool = (env: Env) =>
-  createTool({
-    id: "RUN_SQL",
+  requireAuth(
+    createTool({
+      id: "RUN_SQL",
     description: "Execute SQL against the workspace SQLite database",
     inputSchema: z.object({
       sql: z.string(),
@@ -139,11 +211,13 @@ const createRunSqlTool = (env: Env) =>
         params: context.params,
       });
     },
-  });
+    })
+  );
 
 const createGetDatabaseSchemaTool = (env: Env) =>
-  createTool({
-    id: "GET_DATABASE_SCHEMA",
+  requireAuth(
+    createTool({
+      id: "GET_DATABASE_SCHEMA",
     description: "Get database schema from SQLite database with optional table filtering",
     inputSchema: z.object({
       tables: z.array(z.string()).optional(),
@@ -245,11 +319,13 @@ const createGetDatabaseSchemaTool = (env: Env) =>
         edges: [] // No relationship inference for now
       };
     },
-  });
+    })
+  );
 
 const createNodeAIAssistantTool = (env: Env) =>
-  createTool({
-    id: "NODE_AI_ASSISTANT",
+  requireAuth(
+    createTool({
+      id: "NODE_AI_ASSISTANT",
     description:
       "AI assistant for schema node operations - editing suggestions and SQL generation",
     inputSchema: z.object({
@@ -381,7 +457,8 @@ Please generate clean, well-formatted SQL CREATE TABLE statements for each node.
         throw new Error("AI did not return a valid response");
       }
     },
-  });
+    })
+  );
 
 const createMyWorkflow = (env: Env) => {
   const step = createStepFromTool(createMyTool(env));
@@ -414,6 +491,10 @@ const fallbackToView = (viewPath: string = "/") => (req: Request, env: Env) => {
 const { Workflow, ...runtime } = withRuntime<Env>({
   workflows: [createMyWorkflow],
   tools: [
+    // Public tools (no auth required)
+    createGetCurrentUserTool,
+    // Protected tools (require authentication)
+    createGetMyWorkspacesTool,
     createMyTool,
     createAIGenerateObjectTool,
     createTeamsListTool,

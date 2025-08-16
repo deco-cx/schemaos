@@ -1,7 +1,7 @@
 {
-  "name": "caracracha",
+  "name": "schemaos",
   "version": "1.0.0",
-  "description": "Deco MCP server with a React + Tailwind view, tools and workflows",
+  "description": "Deco App to manage schemas",
   "private": true,
   "workspaces": [
     "server",

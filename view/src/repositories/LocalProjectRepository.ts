@@ -95,51 +95,57 @@ export class LocalProjectRepository implements IProjectRepository {
   /* Teams */
   async listTeams(): Promise<Team[]> {
     try {
-      // Call the RPC to get teams from Deco
-      const response = await client.TEAMS_LIST({});
-      // The API returns an object with an items property containing the teams array
-      const teamsResponse = response as unknown as { items: Team[] };
-      return teamsResponse?.items || [];
+      // Get the current user's workspaces from the authenticated API
+      const workspaces = await client.GET_MY_WORKSPACES({});
+      
+      // Transform workspaces to teams format for compatibility
+      // Each workspace from deco platform is treated as a team
+      const teams: Team[] = workspaces.map((ws: any, index: number) => ({
+        id: index + 1, // Use index as numeric ID
+        name: ws.name,
+        slug: ws.slug,
+        created_at: new Date().toISOString(),
+        avatar_url: undefined
+      }));
+      
+      return teams;
     } catch (error) {
       console.error('Failed to list teams:', error);
+      // Return empty array if not authenticated
       return [];
     }
   }
 
   async syncTeamsToWorkspaces(teams: Team[]): Promise<void> {
-    const existingTeamIds = new Set(
-      this.storage.workspaces
-        .filter(w => !w.isLocal && w.teamId)
-        .map(w => w.teamId)
-    );
+    // Get authenticated workspaces from Deco platform
+    try {
+      const decoWorkspaces = await client.GET_MY_WORKSPACES({});
+      
+      // Create/update workspaces for each deco workspace
+      decoWorkspaces.forEach((decoWs: any) => {
+        const existingWorkspace = this.storage.workspaces.find(
+          w => !w.isLocal && w.name === decoWs.name
+        );
 
-    // Create workspaces for new teams
-    for (const team of teams) {
-      if (!existingTeamIds.has(team.id)) {
-        const workspace: Workspace = {
-          id: crypto.randomUUID(),
-          name: team.name,
-          teamId: team.id,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          isLocal: false,
-        };
-        this.storage.workspaces.push(workspace);
-      }
-    }
-
-    // Update names for existing team workspaces
-    for (const workspace of this.storage.workspaces) {
-      if (!workspace.isLocal && workspace.teamId) {
-        const team = teams.find(t => t.id === workspace.teamId);
-        if (team && team.name !== workspace.name) {
-          workspace.name = team.name;
-          workspace.updatedAt = new Date().toISOString();
+        if (!existingWorkspace) {
+          // Create workspace for deco workspace
+          const workspace: Workspace = {
+            id: `deco-${decoWs.id || decoWs.slug}`,
+            name: decoWs.name,
+            teamId: undefined, // Deco workspaces don't have teamId
+            isLocal: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          this.storage.workspaces.push(workspace);
         }
-      }
-    }
+      });
 
-    this.saveStorage();
+      this.saveStorage();
+    } catch (error) {
+      console.error('Failed to sync deco workspaces:', error);
+      // Continue with local workspaces if API fails
+    }
   }
 
   /* Workspaces */
