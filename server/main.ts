@@ -141,6 +141,112 @@ const createRunSqlTool = (env: Env) =>
     },
   });
 
+const createGetDatabaseSchemaTool = (env: Env) =>
+  createTool({
+    id: "GET_DATABASE_SCHEMA",
+    description: "Get database schema from SQLite database with optional table filtering",
+    inputSchema: z.object({
+      tables: z.array(z.string()).optional(),
+    }),
+    outputSchema: z.object({
+      nodes: z.array(z.object({
+        id: z.string(),
+        name: z.string(),
+        fields: z.array(z.object({
+          name: z.string(),
+          type: z.enum(["string", "number", "boolean", "datetime", "text", "email", "enum"]),
+          isPrimary: z.boolean().optional(),
+          isNullable: z.boolean().optional(),
+        })),
+      })),
+      edges: z.array(z.object({
+        from: z.string(),
+        to: z.string(),
+        label: z.enum(["1-1", "1-N", "N-N"]),
+      })),
+    }),
+    execute: async ({ context }) => {
+      // Build introspection query
+      let sql = `SELECT 
+                  m.name AS table_name,
+                  p.name AS column_name,
+                  p.type AS data_type,
+                  p.pk AS is_primary_key,
+                  p."notnull" AS is_not_null
+                FROM 
+                  sqlite_master m
+                JOIN 
+                  pragma_table_info(m.name) p
+                WHERE 
+                  m.type = 'table'
+                  AND m.name NOT LIKE 'sqlite_%'`;
+      
+      // Add table filter if provided
+      if (context.tables && context.tables.length > 0) {
+        const tableList = context.tables.map(t => `'${t}'`).join(', ');
+        sql += ` AND m.name IN (${tableList})`;
+      }
+      
+      sql += ` ORDER BY m.name, p.cid;`;
+
+      // Execute introspection query
+      const response = await env.DECO_CHAT_WORKSPACE_API.DATABASES_RUN_SQL({
+        sql,
+        params: [],
+      });
+
+      if (!response.result?.[0]?.success || !response.result[0].results) {
+        throw new Error('Failed to fetch database schema');
+      }
+
+      const rows = response.result[0].results as Array<{
+        table_name: string;
+        column_name: string;
+        data_type: string;
+        is_primary_key: number;
+        is_not_null: number;
+      }>;
+
+      // Group by table
+      const tableMap = new Map<string, Array<typeof rows[0]>>();
+      rows.forEach(row => {
+        if (!tableMap.has(row.table_name)) {
+          tableMap.set(row.table_name, []);
+        }
+        tableMap.get(row.table_name)!.push(row);
+      });
+
+      // Map SQLite types to schema types
+      const mapSQLiteToSchemaType = (sqliteType: string): "string" | "number" | "boolean" | "datetime" | "text" | "email" | "enum" => {
+        const type = sqliteType.toUpperCase();
+        if (type.includes('INT')) return 'number';
+        if (type.includes('TEXT') || type.includes('VARCHAR') || type.includes('CHAR')) return 'string';
+        if (type.includes('REAL') || type.includes('FLOAT') || type.includes('DOUBLE')) return 'number';
+        if (type.includes('BLOB')) return 'string';
+        if (type.includes('BOOL')) return 'boolean';
+        if (type.includes('DATE') || type.includes('TIME')) return 'datetime';
+        return 'string'; // Default fallback
+      };
+
+      // Convert to schema format
+      const nodes = Array.from(tableMap.entries()).map(([tableName, columns]) => ({
+        id: `table_${tableName}`,
+        name: tableName,
+        fields: columns.map(col => ({
+          name: col.column_name,
+          type: mapSQLiteToSchemaType(col.data_type),
+          isPrimary: col.is_primary_key === 1,
+          isNullable: col.is_not_null === 0
+        }))
+      }));
+
+      return {
+        nodes,
+        edges: [] // No relationship inference for now
+      };
+    },
+  });
+
 const createNodeAIAssistantTool = (env: Env) =>
   createTool({
     id: "NODE_AI_ASSISTANT",
@@ -312,6 +418,7 @@ const { Workflow, ...runtime } = withRuntime<Env>({
     createAIGenerateObjectTool,
     createTeamsListTool,
     createRunSqlTool,
+    createGetDatabaseSchemaTool,
     createNodeAIAssistantTool,
   ],
   fetch: fallbackToView("/"),

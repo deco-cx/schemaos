@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useEffect } from 'react';
 import type { DragEvent } from 'react';
 import ReactFlow, {
   Background,
@@ -30,7 +30,7 @@ const edgeTypes = {
 
 function CanvasContent() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { project } = useReactFlow();
+  const { project, fitView } = useReactFlow();
   
   const {
     nodes,
@@ -49,7 +49,22 @@ function CanvasContent() {
     clearSelection,
     toggleNodeSelection,
     openNodeAIModal,
+    // View control
+    shouldFitView,
+    setShouldFitView,
   } = useSchemaStore();
+
+  // Auto-fit view after bulk import
+  useEffect(() => {
+    if (shouldFitView && nodes.length > 0) {
+      // Use setTimeout to ensure nodes are rendered before fitting
+      const timer = setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+        setShouldFitView(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldFitView, nodes.length, fitView, setShouldFitView]);
 
   // Disable manual edge creation - edges are now created automatically from field relations
   const onConnect = useCallback(

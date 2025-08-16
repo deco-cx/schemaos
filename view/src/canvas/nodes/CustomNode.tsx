@@ -4,7 +4,6 @@ import type { NodeProps } from 'reactflow';
 import { ChevronDown, ChevronUp, Database, Zap, Download, Check, X } from 'lucide-react';
 import { useSchemaStore } from '../../store';
 import { useExplorer } from '../../hooks/useExplorer';
-import { DATASET_METADATA } from '../../mockData/datasets';
 import type { ObjectNodeData } from '../../store';
 
 export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeData>) {
@@ -26,14 +25,13 @@ export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeD
   const isExpanded = data.showAllFields;
   const isNodeSelected = selectedNodeIds.has(id);
   
-  // Check if this node has data
-  const hasData = data.binding?.id && DATASET_METADATA[data.binding.id as keyof typeof DATASET_METADATA]?.data?.length > 0;
+  // TODO: Check if this node has data from real database
+  const hasData = false; // Will be implemented with real data queries
   
   const handleDoubleClick = () => {
-    // Check if node has PaginatedList capability and a bindingId
-    if (data.binding?.capabilities?.includes('PaginatedList') && data.binding?.id) {
-      openExplorer(data.binding.id);
-    }
+    // TODO: Implement data exploration with real database queries
+    // For now, open explorer with node ID
+    openExplorer(data.id);
   };
 
   const handleNameDoubleClick = (e: React.MouseEvent) => {
@@ -98,7 +96,7 @@ export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeD
     return colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  const hasPaginatedList = data.binding?.capabilities?.includes('PaginatedList');
+  const hasPaginatedList = false; // TODO: Implement with real data capabilities
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -177,24 +175,10 @@ export default function CustomNode({ id, data, selected }: NodeProps<ObjectNodeD
               )}
             </div>
           )}
-          {data.binding && !isEditingName && (
-            <div className="flex items-center gap-1">
-              {data.binding.capabilities?.map((capability, index) => (
-                <div key={index} className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-md">
-                  {getCapabilityIcon(capability)}
-                  <span className="text-xs text-gray-600">{capability}</span>
-                </div>
-              ))}
-            </div>
-          )}
+
         </div>
         
-        {data.binding && (
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-xs text-gray-500">Binding:</span>
-            <span className="text-xs font-medium text-blue-600">{data.binding.id}</span>
-          </div>
-        )}
+
       </div>
 
       {/* Fields */}

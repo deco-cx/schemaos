@@ -21,7 +21,6 @@ import { Plus, Trash2, Sparkles, Edit2, Check, X, Database, BarChart3, Columns, 
 import { useSchemaStore } from '../store';
 import { usePreview } from '../hooks/usePreview';
 import type { Field, RelationMeta } from '../lib/schema-types';
-import { fakeAI } from '../aiMock';
 import { getAvailableViews } from '../lib/viewRegistry';
 import { getValidFieldTypes, getRelationStorageOptions, isPrimitiveType } from '../lib/schema-types';
 
@@ -134,14 +133,9 @@ export default function PropertyPanel() {
     setAiReasoning('');
     
     try {
-      const suggestion = await fakeAI(selectedNode.data.name);
-      
-      // Replace existing fields with AI suggestions
-      updateNode(selectedNode.id, { fields: suggestion.fields });
-      
-      if (suggestion.reasoning) {
-        setAiReasoning(suggestion.reasoning);
-      }
+      // TODO: Implement real AI suggestions using the AI_GENERATE_OBJECT tool
+      // For now, just show a message
+      setAiReasoning('AI suggestions are being integrated. Please use the AI Assistant modal for now.');
     } catch (error) {
       console.error('AI suggestion failed:', error);
     } finally {

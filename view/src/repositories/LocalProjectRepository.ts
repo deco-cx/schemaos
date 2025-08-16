@@ -97,9 +97,9 @@ export class LocalProjectRepository implements IProjectRepository {
     try {
       // Call the RPC to get teams from Deco
       const response = await client.TEAMS_LIST({});
-      // The response should be an array of teams, but the type is not properly defined
-      // Cast it to the expected type since we know the actual API returns Team[]
-      return (response as unknown as Team[]) || [];
+      // The API returns an object with an items property containing the teams array
+      const teamsResponse = response as unknown as { items: Team[] };
+      return teamsResponse?.items || [];
     } catch (error) {
       console.error('Failed to list teams:', error);
       return [];

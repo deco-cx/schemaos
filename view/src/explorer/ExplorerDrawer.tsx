@@ -7,7 +7,6 @@ import { useExplorer } from '../hooks/useExplorer';
 import FilterBar from './FilterBar';
 import { PaginatedTable } from '../preview/PaginatedTable';
 import { evaluateFilters } from './filterDsl';
-import { DATASET_METADATA } from '../mockData/datasets';
 
 export const ExplorerDrawer: React.FC = () => {
   const { isOpen, query, close, addFilter, removeFilter, updateFilter, clearFilters } = useExplorer();
@@ -16,8 +15,8 @@ export const ExplorerDrawer: React.FC = () => {
   // Get entity data and metadata
   const entityParts = query?.entityId.split('.') || [];
   const entityName = entityParts[entityParts.length - 1] || '';
-  const entityMetadata = query ? DATASET_METADATA[query.entityId as keyof typeof DATASET_METADATA] : null;
-  const entityData = entityMetadata?.data || [];
+  // TODO: Fetch real data from database using SQL queries
+  const entityData: any[] = [];
 
   // Apply filters to data
   const filteredData = useMemo(() => {

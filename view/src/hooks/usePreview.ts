@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { DATASET_METADATA } from '../mockData/datasets';
 
 interface PreviewState {
   isOpen: boolean;
@@ -25,24 +24,19 @@ export const usePreview = create<PreviewState>((set) => ({
   metadata: null,
   
   openPreview: (nodeId: string, bindingId: string) => {
-    // Look up the dataset based on bindingId
-    const dataset = DATASET_METADATA[bindingId as keyof typeof DATASET_METADATA];
-    
-    if (dataset) {
-      set({
-        isOpen: true,
-        nodeId,
-        bindingId,
-        data: dataset.data,
-        metadata: {
-          title: dataset.title,
-          description: dataset.description,
-          icon: dataset.icon,
-        },
-      });
-    } else {
-      console.warn(`No dataset found for binding ID: ${bindingId}`);
-    }
+    // TODO: Implement real data preview using SQL queries
+    // For now, just open with empty data
+    set({
+      isOpen: true,
+      nodeId,
+      bindingId,
+      data: [],
+      metadata: {
+        title: 'Data Preview',
+        description: 'Live data preview will be available soon',
+        icon: 'Database',
+      },
+    });
   },
   
   closePreview: () => {

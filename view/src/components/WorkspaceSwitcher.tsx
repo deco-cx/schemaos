@@ -23,8 +23,8 @@ import { Label } from './ui/label';
 export function WorkspaceSwitcher() {
   const { 
     currentWorkspaceId, 
-    workspaces, 
-    teams,
+    workspaces = [],  // Default to empty array if undefined
+    teams = [],  // Default to empty array if undefined
     actions 
   } = useWorkspaceStore();
   
@@ -33,7 +33,7 @@ export function WorkspaceSwitcher() {
   const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const currentWorkspace = workspaces.find(w => w.id === currentWorkspaceId);
+  const currentWorkspace = Array.isArray(workspaces) ? workspaces.find(w => w.id === currentWorkspaceId) : undefined;
 
   const handleCreateWorkspace = async () => {
     if (!newWorkspaceName.trim()) return;
@@ -150,7 +150,7 @@ export function WorkspaceSwitcher() {
                 Team Workspaces
               </div>
               {teamWorkspaces.map((workspace) => {
-                const team = teams.find(t => t.id === workspace.teamId);
+                const team = Array.isArray(teams) ? teams.find(t => t.id === workspace.teamId) : undefined;
                 return (
                   <DropdownMenuItem
                     key={workspace.id}

@@ -3,15 +3,6 @@ import type { Node, Edge, NodeChange, EdgeChange } from 'reactflow'
 import { applyNodeChanges, applyEdgeChanges } from 'reactflow'
 import type { Field } from './lib/schema-types'
 
-export type MockCapability = 'PaginatedList' | 'WebhookSource' | 'BulkExport'
-
-export interface MockBinding {
-  id: string
-  provider: string
-  capabilities: MockCapability[]
-  schema?: any // JSON Schema
-}
-
 // Field interface is now imported from schema-types.ts
 // This ensures consistency between store and AI generation
 
@@ -19,7 +10,6 @@ export interface ObjectNodeData {
   id: string
   name: string
   fields: Field[]
-  binding?: MockBinding
   // UI state
   showAllFields?: boolean // Whether to show all fields or just first 5
 }
@@ -42,6 +32,7 @@ interface SchemaStore {
   isSelectionMode: boolean
   isNodeAIModalOpen: boolean
   nodeAIMode: 'create' | 'edit' | 'sql' | 'import' | null
+  shouldFitView: boolean
 
   // Node operations
   addNode: (node: ObjectNode) => void
@@ -77,6 +68,7 @@ interface SchemaStore {
   
   // UI operations
   toggleShowAllFields: (nodeId: string) => void
+  setShouldFitView: (should: boolean) => void
   
   // Edge sync
   syncEdgesWithRelations: () => void
@@ -99,6 +91,7 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
   isSelectionMode: false,
   isNodeAIModalOpen: false,
   nodeAIMode: null,
+  shouldFitView: false,
 
   // Node operations
   addNode: (node) => {
@@ -174,6 +167,7 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
     set((state) => ({
       nodes: [...state.nodes, ...nodes.map(node => ({ ...node, type: 'custom' } as ObjectNode))],
       edges: [...state.edges, ...edges],
+      shouldFitView: true, // Trigger fit view after bulk import
     }));
     get().saveToLocalStorage();
   },
@@ -323,6 +317,10 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
       ),
     }));
     get().saveToLocalStorage();
+  },
+
+  setShouldFitView: (should) => {
+    set({ shouldFitView: should });
   },
 
   // Sync edges based on field relations

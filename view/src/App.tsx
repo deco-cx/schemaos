@@ -4,7 +4,7 @@ import Canvas from './canvas/Canvas';
 import Palette from './sidebar/Palette';
 import PropertyPanel from './sidebar/PropertyPanel';
 import { ExplorerDrawer } from './explorer/ExplorerDrawer';
-import { DataSourceModal } from './components/DataSourceModal';
+import { ImportDataModal } from './components/ImportDataModal';
 import { WorkspaceSwitcher } from './components/WorkspaceSwitcher';
 import { ProjectSwitcher } from './components/ProjectSwitcher';
 import { useSchemaStore } from './store';
@@ -27,6 +27,9 @@ function App() {
   // Sidebar collapse state
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
+  
+  // Import modal state
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Initialize workspaces on mount
   useEffect(() => {
@@ -82,28 +85,7 @@ function App() {
   };
 
   const handleImport = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      
-      try {
-        const text = await file.text();
-        const data = JSON.parse(text);
-        
-        // In a real app, you'd validate the schema here
-        if (data.nodes && data.edges) {
-          reset();
-          // Would need to implement an import method in the store
-          window.location.reload(); // Quick hack to reset and reload
-        }
-      } catch (error) {
-        console.error('Failed to import schema:', error);
-      }
-    };
-    input.click();
+    setIsImportModalOpen(true);
   };
 
   return (
@@ -301,8 +283,11 @@ function App() {
       {/* Preview Drawer */}
       <ExplorerDrawer />
       
-      {/* Data Source Modal */}
-      <DataSourceModal />
+      {/* Import Data Modal */}
+      <ImportDataModal 
+        isOpen={isImportModalOpen} 
+        onClose={() => setIsImportModalOpen(false)} 
+      />
     </div>
   );
 }

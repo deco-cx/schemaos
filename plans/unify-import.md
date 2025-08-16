@@ -60,204 +60,103 @@ createTool({
 })
 ```
 
-## Problemas Identificados
+---
 
-1. **Fragmentação:** 3 sistemas diferentes para mesma funcionalidade
-2. **Dados Mockados:** DataSourceModal usa apenas dados hardcoded
-3. **Import JSON Quebrado:** Apenas recarrega página
-4. **UX Confusa:** Usuário não sabe qual usar
-5. **Botão Import não funciona:** Clica e nada acontece (problema reportado)
+## 🆕 Revisão de Escopo (V2)
 
-## Plano de Unificação
+Sob orientação do product owner, **simplificaremos** o sistema de import para dois fluxos principais e descontinuaremos as opções mockadas/JSON:
 
-### Fase 1: Criar Sistema Unificado de Import
+| Import Option | Descrição | Status |
+|---------------|-----------|--------|
+| **Describe with natural language** | Usuário descreve o que deseja em texto livre. A IA converte para nosso `SchemaSpec` e adiciona ao canvas | **Novo** |
+| **Import from Deco SQLite** | Front-end chama `GET_DATABASE_SCHEMA` → back-end usa `RUN_SQL` para introspecção → usuário escolhe tabelas → nodes gerados e posicionados automaticamente | **Novo** |
 
-#### 1.1 Novo Hook Unificado
-**Arquivo:** `view/src/hooks/useImportData.ts`
+Link para instalar mais apps (futuro): [https://deco.chat/connections](https://deco.chat/connections) (desativado nesta etapa).
 
-```typescript
-interface ImportSource {
-  type: 'file' | 'database' | 'integration';
-  id: string;
-  name: string;
-  icon: string;
-  description: string;
-}
+### 📐 Schema Único
+- Manteremos **apenas um** tipo de schema compartilhado (`SchemaSpec`, já usado por `SchemaAssistantModal`).
+- Todas as rotas (NL e SQLite) devem produzir exatamente essa estrutura antes de enviar ao canvas.
 
-interface UseImportData {
-  // Estado
-  isModalOpen: boolean;
-  currentSource: ImportSource | null;
-  isImporting: boolean;
-  
-  // Ações
-  openImportModal: () => void;
-  closeImportModal: () => void;
-  
-  // Import methods
-  importFromFile: (file: File) => Promise<void>;
-  importFromDatabase: () => Promise<void>; // SQL introspection
-  importFromIntegration: (integrationId: string) => Promise<void>;
-}
-```
+---
 
-#### 1.2 Modal de Import Unificado
-**Arquivo:** `view/src/components/ImportDataModal.tsx`
+## 🔧 Alterações Necessárias
 
-```typescript
-// Tabs para diferentes tipos de import:
-// - Upload File (JSON/CSV)
-// - Connect Database (SQL introspection)
-// - Connect Apps (Integrations futuras)
-```
+### 1. Backend / Tools
 
-### Fase 2: Integração com DB Real
+| Tool | Local | Responsabilidade |
+|------|-------|------------------|
+| `RUN_SQL` | _já existe_ | Executar SQL arbitrário na base SQLite |
+| **`GET_DATABASE_SCHEMA`** | **NOVO** → `server/main.ts` | 1) Receber opcionalmente `tables?: string[]` 2) Montar introspection query 3) Usar `RUN_SQL` internamente 4) Retornar `SchemaSpec` com tabelas/colunas |
+| `AI_GENERATE_OBJECT` | _já existe_ | Converter NL → `SchemaSpec` |
 
-#### 2.1 Converter DataSources para DB Real
-1. Adicionar novo tool no servidor: `LIST_DATA_SOURCES`
-2. Buscar connections disponíveis do workspace
-3. Substituir MOCK_BINDINGS por dados reais
+> Observação: `GET_DATABASE_SCHEMA` **não** deve ser exposto diretamente ao modelo; apenas como RPC para o front-end.
 
-#### 2.2 Schema Discovery
-```typescript
-// Novo tool no servidor
-createTool({
-  id: "DISCOVER_SCHEMA",
-  execute: async ({ context }) => {
-    // Para cada data source:
-    // - Listar tabelas/collections
-    // - Descobrir fields e types
-    // - Retornar metadata
-  }
-})
-```
+### 2. Front-end
 
-### Fase 3: Import de Arquivo Funcional
+1. **Novo Hook:** `useImportData.ts` (substitui `useDataSources.ts`)
+2. **Novo Modal:** `ImportDataModal.tsx`
+   - **Tabs:** "Natural Language" | "SQLite"
+   - **Natural Language Tab**
+     - TextArea + botão **Generate**
+     - Chama `client.AI_GENERATE_OBJECT` com schema esperado
+   - **SQLite Tab**
+     - Botão **Load Tables** → chama `client.GET_DATABASE_SCHEMA` (sem filtro) → recebe listagem
+     - UX de seleção de tabelas (checkbox list + search)
+     - Após seleção, chama novamente `client.GET_DATABASE_SCHEMA({ tables: selected })` (ou filtra client-side) para schema final
+3. **Canvas Integration**
+   - Função `appendSchemaToCanvas(schema: SchemaSpec)`
+   - Conversão `SchemaSpec` → `ObjectNode[] | RelationEdge[]`
+   - **Auto-layout**: usar grid simples ou biblioteca `dagre` para espaçar nodes `≥ 200px` em X/Y
 
-#### 3.1 Parser de JSON Schema
-```typescript
-interface SchemaImporter {
-  parseJSON(content: string): SchemaSpec;
-  parseCSV(content: string): SchemaSpec;
-  parseSQL(content: string): SchemaSpec; // DDL statements
-  validateSchema(schema: SchemaSpec): ValidationResult;
-}
-```
+### 3. UX & Design Considerations (Para AI / implementador)
 
-#### 3.2 Integração com Store
-```typescript
-// Em store.ts
-importSchema: (schema: SchemaSpec) => {
-  // Validar schema
-  // Mapear para nodes/edges
-  // Adicionar ao canvas com layout automático
-  // Preservar bindings se existirem
-}
-```
+- **Selection UX**
+  - Tabelas listadas com badge de n° de colunas
+  - "Select All" + busca incremental
+  - Desabilitar botão **Importar** até ≥1 tabela
+- **Node Placement**
+  - Distribuir nodes no grid 4×N, linhas de 250 px, colunas de 350 px
+  - Após inserção, chamar `react-flow` `fitView()`
+  - Desenhar relações (se futuras versões inferirem FKs) com curvatura suave; evitar sobreposição
+- **Empty State**
+  - Se não houver tabelas, mostrar callout "No tables found" + link docs
+- **Performance**
+  - Paginar lista se >50 tabelas
+  - Lazy-load colunas somente na seleção
 
-### Fase 4: UI/UX Melhorado
+### 4. Atualização do Plano de Projeto
 
-#### 4.1 Botão Import Principal
-```typescript
-// App.tsx - Substituir handleImport quebrado
-const handleImport = () => {
-  importStore.openImportModal();
-};
-```
+Substituir fases anteriores:
 
-#### 4.2 Fluxo de Import
-1. Clica em Import → Abre modal unificado
-2. Escolhe fonte (File/DB/App)
-3. Configura opções específicas
-4. Preview do schema
-5. Confirma e importa
+1. **Semana 1** – Hook & Modal c/ NL + SQLite stub
+2. **Semana 2** – Implementar `GET_DATABASE_SCHEMA` + introspecção + seleção de tabelas
+3. **Semana 3** – Auto-layout + validações + polish UI
+4. **Semana 4** – Testes + documentação + cleanup código legado
 
-### Fase 5: Migração de Código Existente
+Métricas de sucesso permanecem as mesmas, mas a **redução agora é de 3 → 2 sistemas** (JSON/mock removidos).
 
-#### 5.1 Deprecar Código Antigo
-- [ ] Marcar `handleImport` em App.tsx como deprecated
-- [ ] Mover lógica de `handleImportFromDB` para novo sistema
-- [ ] Converter `DataSourceModal` para usar dados reais
+---
 
-#### 5.2 Manter Compatibilidade
-- [ ] Wrapper temporário para código existente
-- [ ] Migração gradual de funcionalidades
-- [ ] Testes de regressão
+## 📑 Instruções de Implementação para o Próximo Assistente
 
-## Implementação Sugerida
+1. **Criar Tool `GET_DATABASE_SCHEMA`** em `server/main.ts` seguindo padrão de `RUN_SQL`.
+2. **Gerar tipos** com `npm run gen:self` para expor no client.
+3. **Criar `useImportData.ts`** com estado e chamadas RPC.
+4. **Criar `ImportDataModal.tsx`** com tabs NL / SQLite e fluxo descrito.
+5. **Substituir** `handleImport` em `App.tsx` para abrir o novo modal.
+6. **Remover** ou marcar como deprecated `DataSourceModal` e mocks.
+7. **Implementar Converter** `SchemaSpec` → `ObjectNode` (já existe função em `SchemaAssistantModal`, reutilizar).
+8. **Adicionar Auto-layout** simples pós-merge (grid ou dagre).
+9. **Escrever testes unitários** para hook + converter.
+10. **Atualizar documentação**.
 
-### Passo 1: Hook Básico (1 dia)
-```typescript
-// useImportData.ts
-export const useImportData = create<ImportDataState>((set, get) => ({
-  isModalOpen: false,
-  currentSource: null,
-  isImporting: false,
-  
-  openImportModal: () => set({ isModalOpen: true }),
-  closeImportModal: () => set({ isModalOpen: false }),
-  
-  importFromDatabase: async () => {
-    // Reusar lógica de SchemaAssistantModal
-    const response = await client.RUN_SQL({ sql: introspectionQuery });
-    // Processar e adicionar nodes
-  }
-}));
-```
+---
 
-### Passo 2: Modal Unificado (2 dias)
-- Tabs para diferentes fontes
-- Preview de schema antes de importar
-- Mapeamento de fields customizável
+## 🚀 Próximos Passos Imediatos (Sprint-0)
 
-### Passo 3: Integração Real (3 dias)
-- Conectar com DECO_CHAT_WORKSPACE_API
-- Listar data sources reais
-- Schema discovery dinâmico
+- [ ] Adicionar `GET_DATABASE_SCHEMA` (backend)
+- [ ] Setup hook + modal esqueleto (frontend)
+- [ ] Wire botão Import principal
+- [ ] Reaproveitar conversor existente
 
-### Passo 4: Testes e Polish (2 dias)
-- Testes unitários
-- Testes E2E
-- Melhorias de UX
-- Documentação
-
-## Benefícios da Unificação
-
-1. **UX Simplificada:** Um único ponto de entrada para imports
-2. **Dados Reais:** Conexão com databases e APIs reais
-3. **Extensível:** Fácil adicionar novos tipos de import
-4. **Manutenível:** Código centralizado e organizado
-5. **Testável:** Estrutura clara para testes
-
-## Riscos e Mitigações
-
-| Risco | Mitigação |
-|-------|-----------|
-| Quebrar funcionalidade existente | Manter código antigo temporariamente |
-| Complexidade de migração | Implementar em fases pequenas |
-| Performance com dados grandes | Implementar paginação e lazy loading |
-| Segurança de credentials | Usar sistema de auth do Deco |
-
-## Métricas de Sucesso
-
-- [ ] Botão Import funciona consistentemente
-- [ ] Tempo de import < 3 segundos para schemas médios
-- [ ] 0 erros em imports de arquivos válidos
-- [ ] Suporte a 3+ formatos de import
-- [ ] Redução de 3 sistemas para 1 sistema unificado
-
-## Timeline Estimado
-
-- **Semana 1:** Hook básico + Modal UI
-- **Semana 2:** Integração com DB real
-- **Semana 3:** Import de arquivo + Testes
-- **Semana 4:** Polish + Documentação
-
-Total: **4 semanas** para unificação completa
-
-## Próximos Passos Imediatos
-
-1. **Quick Fix:** Fazer botão Import abrir DataSourceModal existente
-2. **Começar Hook:** Criar `useImportData.ts` com estrutura básica
-3. **Protótipo Modal:** Design do modal unificado
-4. **Validar com Equipe:** Revisar plano antes de implementar
+❤️ **Bons códigos!**

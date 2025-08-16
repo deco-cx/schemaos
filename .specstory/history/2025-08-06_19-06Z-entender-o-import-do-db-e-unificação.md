@@ -445,3 +445,68 @@ The instructions follow exactly what you requested, with the Deco button/link pr
 
 ---
 
+_**User**_
+
+Ok, I want to explore more the unify-import. Your job is to help me change it, expand it, adding my instructions there and more, to be used as coding instructions for the next assistant which will implement this
+
+The import will be very simple
+
+There will be providers 
+
+Providers are based on the Apps installed into your workspace. To install more apps, click here -> link to https://deco.chat/connections 
+
+But, actually, we're going to "rob" a bit - There will be only two options 
+
+> Describe with natural language
+
+> Import from deco SQLite 
+
+When Import from deco SQLite  is clicked, the frontend rpc a tool called GET_DATABASE_SCHEMA. This tool will, internally, run the sql using the RUN_SQL tool (called from the backend only) to get the database tables and their columns. The data will be treated in the Schema type we'll try our best to use only one across the system
+
+After that, we'll show a select tables UX in the same modal for the user to choose which tables they want to import. Add in the prompt the consideration for the AI to really think about this UX.
+
+And then, after the user selects the table, we map it into our canva's node's schema and append it there.
+
+Please, add consideration for the AI to check if we can also draw the nodes in a good design. they have arrows between them and, at first, we almost cant see the arrows because the nodes are sooo close to each other
+
+Describe with natural language is very simple. It's a textbox that will use a tool (that I think we already have, but check at server main.ts) to transform natural language into our schema schema's (??) to be added to the graph as well
+
+@unify-import.md 
+
+go! think hard please
+
+---
+
+_**Assistant**_
+
+<think><details><summary>Thought Process</summary>**Updating file plans**
+
+The user wants me to modify the file to include new coding instructions for the next assistant. I’ll expand on two providers: "Describe with natural language" and "Import from deco SQLite." 
+
+For the first flow, I'll mention that the text box will convert natural language into a schema, potentially using an AI generation tool. For importing from SQLite, I should note to utilize a procedure to introspect the database schema and display table selections in a modal. Finally, I should ensure that nodes are properly laid out on the canvas to avoid overlap, while providing a link for app installations in a message.
+**Updating unify-import.md**
+
+I need to update the unify-import.md file to align with the new, simpler flows. I'll likely adjust older sections to reflect these changes, possibly rewriting parts rather than just replacing text. 
+
+The current content will need modifications, like reducing the section on database integration to focus on two import methods. I'll also need to add a new section titled "Novo Escopo" with specific details. 
+
+Additional aspects include implementing a new server tool and designing a UI with modal tabs for different inputs. I'll ensure that everything flows well and append this to the end of the file, creating the necessary new content along the way.</details></think>
+
+---
+
+
+
+---
+
+Atualizei `plans/unify-import.md` com:
+
+• Novo escopo (apenas “Describe with natural language” e “Import from Deco SQLite”)  
+• Especificação detalhada do tool `GET_DATABASE_SCHEMA`  
+• Fluxo completo de UI (hook, modal, seleção de tabelas, auto-layout)  
+• Checklist claro de implementação para o próximo assistente  
+• Nova timeline e métricas
+
+Pronto para guiar a próxima etapa de codificação!
+
+---
+
